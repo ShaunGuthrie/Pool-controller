@@ -1,20 +1,21 @@
-# Board: Generic ESP32-P4 Board (Generic)
-# Definition: definitions/boards/generic-esp32p4/manifest.yaml
-
 esphome:
-  name: test-2
-  friendly_name: test 2
+  name: p4-test
+  friendly_name: test
 
 esp32:
   variant: esp32p4
-  flash_size: 16MB
   framework:
     type: esp-idf
+    version: 5.4.2
+    advanced:
+      enable_idf_experimental_features: true
+  flash_size: 32MB
+  cpu_frequency: 360MHz
+
+psram:
+  mode: hex
+  speed: 200MHz
 
 logger:
+  level: DEBUG
 
-# This board has no native Wi-Fi. ESPHome's ``api:`` and
-# ``ota:`` components both require a ``network``
-# component — configure ``openthread:`` / ``ethernet:`` /
-# ``esp32_hosted:`` to suit your setup, then add ``api:``
-# and ``ota:`` blocks once the network is ready.
