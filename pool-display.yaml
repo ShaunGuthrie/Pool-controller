@@ -22,6 +22,7 @@ esphome:
   
 esp32:
   variant: esp32p4
+  engineering_sample: true
   framework:
     type: esp-idf
 #    version: 5.4.2
