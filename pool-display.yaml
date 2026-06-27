@@ -1,6 +1,10 @@
 esphome:
   name: "pool-display"
   friendly_name: Pool Display
+  platformio_options:
+    build_flags: "-DBOARD_HAS_PSRAM"
+    board_build.esp-idf.memory_type: qio_opi
+    board_build.flash_mode: dio
   on_boot:
     - priority: 600
       then:
@@ -21,37 +25,30 @@ esphome:
    
   
 esp32:
-  variant: esp32p4
-  engineering_sample: true
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
   framework:
     type: esp-idf
-#    version: 5.4.2
-    advanced:
-      enable_idf_experimental_features: true
-  flash_size: 32MB
-  cpu_frequency: 360MHz
+    #platform_version: 6.8.1
+    #version: 5.3.0
+    # Required to achieve sufficient PSRAM bandwidth
+    sdkconfig_options:
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: y
+      CONFIG_ESP32S3_DATA_CACHE_64KB: y
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: y
+      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: y
+      CONFIG_SPIRAM_RODATA: y
 
-esp32_hosted:
-  variant: ESP32C6
-  reset_pin: GPIO54
-  cmd_pin: GPIO19
-  clk_pin: GPIO18
-  d0_pin: GPIO14
-  d1_pin: GPIO15
-  d2_pin: GPIO16
-  d3_pin: GPIO17
-  active_high: true
+
 
 psram:
-  mode: hex
-  speed: 200MHz
+  mode: octal
+  speed: 80MHz
 
 preferences:
   flash_write_interval: 5min
 
-esp_ldo:
-  - voltage: 2.5V
-    channel: 3
+
 
 
 logger:
@@ -69,10 +66,7 @@ captive_portal:
 web_server:
   port: 80
 
-http_request:
-  useragent: esphome/cyd
-  timeout: 10s
-  verify_ssl: False
+
 
 
 wifi:
