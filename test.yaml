@@ -80,22 +80,23 @@ display:
       height: 600
 
 
-touchscreen:
-  - platform: gt911
-    id: touch
-    reset_pin: GPIO23
-    update_interval: 50ms
-    transform:
-      swap_xy: false
-      mirror_x: true
-      mirror_y: true
-    on_touch:
-      then:
-        - light.turn_on:
-            id: backlight
-        - script.execute: 
-            id: backlight_off_timer
-        - logger.log: "TOUCH DETECTED"    
+#touchscreen:
+#  - platform: gt911
+#    id: touch
+#    reset_pin: GPIO23
+#    update_interval: 50ms
+#    transform:
+#      swap_xy: false
+#      mirror_x: true
+#      mirror_y: true
+#    on_touch:
+#      then:
+#        - light.turn_on:
+
+#            id: backlight
+#        - script.execute: 
+#            id: backlight_off_timer
+#        - logger.log: "TOUCH DETECTED"    
 
 # --- Backlight ---
 output:
@@ -129,8 +130,8 @@ lvgl:
   byte_order: little_endian
   displays:
     - main_display
-  touchscreens:
-    - touch
+#  touchscreens:
+#    - touch
   
   pages:
     # ─────────────────────────────
