@@ -76,17 +76,17 @@ wifi:
 packages:
 
   globals: !include pool-display/globals.yaml
-  heater: !include pool-display/heater.yaml
+#  heater: !include pool-display/heater.yaml
   hardware: !include pool-display/hardware.yaml
-  chemistry: !include pool-display/chemistry.yaml
+#  chemistry: !include pool-display/chemistry.yaml
   pump: !include pool-display/pump.yaml
 #  acid_dose: !include pool-display/acid_dose.yaml
 #  chlorinator: !include pool-display/chlorinator.yaml
-  schedule: !include pool-display/schedule.yaml
+#  schedule: !include pool-display/schedule.yaml
   interfaces: !include pool-display/interface/interface_config.yaml
   fonts: !include pool-display/interface/fontscolors.yaml
   lvgl: !include pool-display/interface/lvgl_7_wave.yaml
   style: !include pool-display/interface/themes_styles.yaml
-  core: !include pool-display/core.yaml
+#  core: !include pool-display/core.yaml
 
 
