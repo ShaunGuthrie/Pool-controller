@@ -1,10 +1,6 @@
 esphome:
   name: "pool-display"
   friendly_name: Pool Display
-  platformio_options:
-    build_flags: "-DBOARD_HAS_PSRAM"
-    board_build.esp-idf.memory_type: qio_opi
-    board_build.flash_mode: dio
   on_boot:
     - priority: 600
       then:
@@ -25,23 +21,37 @@ esphome:
    
   
 esp32:
-  variant: esp32s3
-  flash_size: 16MB
+  variant: esp32p4
+  engineering_sample: true
   framework:
     type: esp-idf
+#    version: 5.4.2
     advanced:
-      execute_from_psram: true
+      enable_idf_experimental_features: true
+  flash_size: 32MB
+  cpu_frequency: 360MHz
 
-
+esp32_hosted:
+  variant: ESP32C6
+  reset_pin: GPIO54
+  cmd_pin: GPIO19
+  clk_pin: GPIO18
+  d0_pin: GPIO14
+  d1_pin: GPIO15
+  d2_pin: GPIO16
+  d3_pin: GPIO17
+  active_high: true
 
 psram:
-  mode: octal
-  speed: 80MHz
+  mode: hex
+  speed: 200MHz
 
 preferences:
   flash_write_interval: 5min
 
-
+esp_ldo:
+  - voltage: 2.5V
+    channel: 3
 
 
 logger:
@@ -59,7 +69,10 @@ captive_portal:
 web_server:
   port: 80
 
-
+http_request:
+  useragent: esphome/cyd
+  timeout: 10s
+  verify_ssl: False
 
 
 wifi:
@@ -76,17 +89,17 @@ wifi:
 packages:
 
   globals: !include pool-display/globals.yaml
-#  heater: !include pool-display/heater.yaml
+  heater: !include pool-display/heater.yaml
   hardware: !include pool-display/hardware.yaml
-#  chemistry: !include pool-display/chemistry.yaml
+  chemistry: !include pool-display/chemistry.yaml
   pump: !include pool-display/pump.yaml
 #  acid_dose: !include pool-display/acid_dose.yaml
 #  chlorinator: !include pool-display/chlorinator.yaml
-#  schedule: !include pool-display/schedule.yaml
+  schedule: !include pool-display/schedule.yaml
   interfaces: !include pool-display/interface/interface_config.yaml
   fonts: !include pool-display/interface/fontscolors.yaml
   lvgl: !include pool-display/interface/lvgl_7_wave.yaml
   style: !include pool-display/interface/themes_styles.yaml
-#  core: !include pool-display/core.yaml
+  core: !include pool-display/core.yaml
 
 
