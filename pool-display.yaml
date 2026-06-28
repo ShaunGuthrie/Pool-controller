@@ -102,7 +102,7 @@ packages:
   pump: !include pool-display/pump.yaml
   acid_dose: !include pool-display/acid_dose.yaml
   chlorinator: !include pool-display/chlorinator.yaml
-  schedule: !include pool-display/schedule.yaml
+#  schedule: !include pool-display/schedule.yaml
   interfaces: !include pool-display/interface/interface_config.yaml
   fonts: !include pool-display/interface/fontscolors.yaml
   lvgl: !include pool-display/interface/lvgl_7_wave.yaml
