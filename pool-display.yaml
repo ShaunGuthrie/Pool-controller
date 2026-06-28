@@ -4,7 +4,7 @@ esphome:
   platformio_options:
     build_flags:
       - "-DLVGL_USE_VG_LITE=0"
-    build_path: "C:\\esphome_build\\pool-display"
+    
 
   on_boot:
     - priority: 600
