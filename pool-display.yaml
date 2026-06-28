@@ -42,7 +42,11 @@ esp32_hosted:
   d3_pin: GPIO17
   active_high: true
 
-  
+update:
+  - platform: esp32_hosted
+    type: embedded
+    path: network_adapter_esp32c6.bin
+    name: "C6 Firmware"  
 
 psram:
   mode: hex
