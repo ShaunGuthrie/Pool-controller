@@ -2,6 +2,8 @@ esphome:
   name: "pool-display"
   friendly_name: Pool Display
   platformio_options:
+    build_dir: "C:\\esphome_build\\pool-display"
+  build_path: "C:\\esphome_build\\pool-display"
     build_flags:
       - "-DLVGL_USE_VG_LITE=0"
   on_boot:
