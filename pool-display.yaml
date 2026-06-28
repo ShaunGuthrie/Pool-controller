@@ -3,7 +3,7 @@ esphome:
   friendly_name: Pool Display
   platformio_options:
     build_flags:
-      - "-DLVGL_FORCE_REBUILD=1"
+      - "-DLVGL_USE_VG_LITE=0"
   on_boot:
     - priority: 600
       then:
