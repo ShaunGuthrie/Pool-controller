@@ -47,7 +47,7 @@ update:
     type: embedded
     path: network_adapter_esp32c6.bin
     name: "C6 Firmware"  
-    sha
+    sha256: "9D8CEC9DCCA632E9DED31DE555A5B49C70316D30B87AE06BD933FD35A5A11513"
 
 psram:
   mode: hex
