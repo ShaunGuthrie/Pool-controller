@@ -31,8 +31,8 @@ esp32:
   flash_size: 32MB
   cpu_frequency: 360MHz
 
-ethernet:
-  type: W5500
+#ethernet:
+#  type: W5500
   mosi_pin: GPIO4
   miso_pin: GPIO5
   clk_pin: GPIO2
