@@ -4,7 +4,8 @@ esphome:
   platformio_options:
     build_dir: "C:\\esphome_build\\pool-display"
     build_path: "C:\\esphome_build\\pool-display"
-    
+    build_unflags:
+      - "-DLVGL_USE_VG_LITE"
     build_flags:
       - "-DLVGL_USE_VG_LITE=0"
 
