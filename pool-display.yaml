@@ -2,8 +2,11 @@ esphome:
   name: "pool-display"
   friendly_name: Pool Display
   platformio_options:
+    build_unflags:
+      - "-DLVGL_USE_VG_LITE"
     build_flags:
       - "-DLVGL_USE_VG_LITE=0"
+
     
 
   on_boot:
