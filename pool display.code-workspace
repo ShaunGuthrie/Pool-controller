@@ -1,8 +1,0 @@
-{
-  "folders": [
-    { "path": "." },
-    { "path": "pool-display" },
-	{ "path": "pool-display/interface" }
-  ],
-  "settings": {}
-}

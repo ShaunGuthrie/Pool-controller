@@ -8,3 +8,4 @@
 /archive
 .device-builder
 *.zip
+*.code-workspace
