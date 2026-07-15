@@ -1,0 +1,101 @@
+globals:
+#core globals
+  - id: log_debug_enabled
+    type: bool
+    restore_value: true
+    initial_value: "true"
+  - id: reboot_count
+    type: int
+    restore_value: true
+    initial_value: '0'      
+  - id: boot_complete
+    type: bool
+    initial_value: "false"   
+
+#heater globals
+  - id: heater_run # REVIEW LATER - used for heater running/idle and schedule pump lockout
+    type: std::string
+    initial_value: '"Idle"'
+    restore_value: true
+
+#service globals
+  - id: saved_heater_enabled
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: service_state
+    type: std::string
+    restore_value: no
+    initial_value: '"NORMAL"'
+  - id: saved_pump_status
+    type: std::string
+    restore_value: no
+    initial_value: '"Off"'  
+      
+
+#pump globals    
+  - id: Pump_Status
+    type: std::string
+    initial_value: '"Low"'
+    restore_value: true
+  - id: Prev_Pump_Status
+    type: std::string
+    initial_value: '"Low"'
+    restore_value: true
+
+
+#chlorinator globals    
+  - id: super_chlor_remaining
+    type: int
+    restore_value: true
+    initial_value: '0'
+
+# acid dosing globals
+  - id: dose_armed
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: ph_dosing_running
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: ph_dose_target
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: dose_minutes_run
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: last_dose_minutes
+    type: int
+    restore_value: false
+    initial_value: '0' 
+  - id: last_dose_start_ph
+    type: float
+    restore_value: false
+    initial_value: '0.0'         
+  - id: ph_dose  
+    type: int
+    restore_value: false
+    initial_value: '0'    
+  - id: dose_state
+    type: std::string
+    restore_value: false
+    initial_value: '"idle"'
+  - id: dose_wait_until
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: dose_pump_start_time
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: dose_session_minutes_used
+    type: int
+    restore_value: false
+    initial_value: '0'  
+  - id: dose_complete_flag
+    type: bool
+    restore_value: false
+    initial_value: 'false'  

@@ -1,0 +1,71 @@
+lvgl:
+  theme:
+    button:
+      bg_color: 0x606060 # dk_gray
+      bg_opa: COVER
+      border_color: 0x909090 # gray
+      border_width: 1
+      text_color: 0xFFFFFF # white 
+      radius: 10
+      shadow_width: 6
+      pressed:
+        bg_color: 0xC0C0C0 # lt_gray
+        bg_grad_color: 0xC0C0C0 # lt_gray
+        bg_opa: COVER
+      checked:
+        bg_color: 0x00FF00 # green
+        text_color: 0x000000 # black
+      
+    label:
+      text_color: 0xFFFFFF # white
+      text_font: montserrat_20
+    bar:
+      radius: 0
+      border_width: 1
+      border_color: 0x909090 # gray
+      bg_color: 0x303030 # lt_black
+      indicator:
+        radius: 0
+        bg_color: 0x00FF00 # green
+    slider:
+      border_width: 1
+      border_opa: TRANSP
+      bg_color: 0x303030 # lt_black
+      bg_opa: TRANSP
+      indicator:
+        bg_color: 0x0000FF # blue
+        bg_opa: COVER
+      knob:
+        bg_color: 0xFFFFFF # white
+        bg_opa: COVER
+        border_color: 0x000000 # black
+        border_width: 1
+        text_color: 0xFFFFFF # white
+    meter:
+      bg_opa: TRANSP
+      border_opa: TRANSP
+      outline_width: 0
+      indicator:
+        bg_opa: TRANSP
+
+  style_definitions:
+    - id: header
+      bg_color: 0x303030 # lt_black       
+      bg_grad_color: 0x606060 # dk_gray  
+      bg_grad_dir: VER
+      bg_opa: COVER
+      border_opa: TRANSP
+      radius: 8
+      pad_all: 5
+      pad_row: 0
+      pad_column: 0
+      border_color: 0x909090 # gray 
+      text_color: 0xFFFFFF # white   
+    - id: object
+      bg_color: 0x303030 # lt_black 
+      bg_opa: COVER       
+      border_opa: TRANSP
+      radius: 8
+      pad_all: 4
+      text_color: 0xFFFFFF # white   
+

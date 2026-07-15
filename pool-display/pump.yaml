@@ -1,0 +1,562 @@
+script:
+
+  - id: service_stop_action
+    mode: restart
+    then:
+      - globals.set:
+          id: saved_pump_status
+          value: !lambda 'return id(Pump_Status);'
+      - button.press: b_off    
+      - logger.log: "SERVICE STOP pressed"
+
+      - lambda: |-
+          id(service_state) = "SERVICE";
+          
+          id(saved_heater_enabled) =
+            (id(pool_heater).mode == climate::CLIMATE_MODE_HEAT);
+          
+      - lvgl.widget.update:
+          id: head_btn_service_run
+          bg_color: 0xFF0000 # red
+
+      - lvgl.label.update:
+          id: head_btn_lbl_service
+          text: "\U000f05b7"
+          text_color: 0x000000 # black
+      - switch.turn_off: super_chlorinate
+      - switch.turn_off: chlor_power
+
+      - climate.control:
+          id: pool_heater
+          mode: "OFF"
+
+      - switch.turn_off: speed_high
+
+      - lvgl.label.update:
+          id:  head_lbl_service_mode
+          text: "Service Mode"
+
+  - id: service_run_action
+    mode: restart
+    then:
+      - logger.log: "SERVICE RUN pressed"
+
+      - lambda: |-
+          if (id(service_state) != "SERVICE") {
+            ESP_LOGW("service", "RUN ignored - not in service mode");
+            return;
+          }
+
+          id(service_state) = "RUN";
+      - lvgl.widget.update:
+          id: head_btn_service_run
+          bg_color: 0x00FF00 # green
+
+      - lvgl.label.update:
+          id: head_btn_lbl_service
+          text: "\U000f1402"
+          text_color: 0x000000 # black
+      - switch.turn_on: speed_high
+
+      - lambda: |-
+          id(Pump_Status) = "High";
+
+  - id: service_resume_action
+    mode: restart        
+    then:
+      - logger.log: "SERVICE RESUME pressed"
+      - lvgl.label.update:
+          id:  head_lbl_service_mode
+          text: "Normal"
+
+      - lambda: |-
+          // If RUN was active, stop pump first
+          if (id(service_state) == "RUN") {
+            id(b_off).press();
+          }
+
+          id(service_state) = "NORMAL";
+      - lvgl.widget.update:
+          id: head_btn_service_run
+          bg_color: 0x606060 # dk_gray
+
+      - lvgl.label.update:
+          id: head_btn_lbl_service
+          text: "\U000F0BE0"
+          text_color: 0xFFFFFF # white    
+
+      - if:
+          condition:
+            lambda: 'return id(saved_pump_status) == "Low";'
+          then:
+            - button.press: b_low
+
+      - if:
+          condition:
+            lambda: 'return id(saved_pump_status) == "High";'
+          then:
+            - button.press: b_high
+
+      - if:
+          condition:
+            lambda: 'return id(saved_pump_status) == "Off";'
+          then:
+            - button.press: b_off
+
+      - if:
+          condition:
+            lambda: 'return id(saved_heater_enabled);'
+          then:
+            - climate.control:
+                id: pool_heater
+                mode: "HEAT"
+binary_sensor:
+  - platform: gpio
+    name: "SERVICE STOP"
+    id: stop
+    pin:
+      number: GPIO52
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    on_press:
+      then:
+        - script.execute: service_stop_action
+
+  - platform: gpio
+    name: "SERVICE RUN"
+    id: service_run
+    pin:
+      number: GPIO51
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    on_press:
+      then:
+        - script.execute: service_run_action
+
+  - platform: gpio
+    name: "RESUME"
+    id: resume
+    pin:
+      number: GPIO50
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    on_press:
+      then:
+        - script.execute: service_resume_action
+sensor:
+  - platform: ads1115
+    ads1115_id: ads0
+    multiplexer: 'A3_GND'
+    gain: 4.096
+    name: "Filter Pressure raw"
+    id: filter_pressure_raw
+    unit_of_measurement: "V"
+    accuracy_decimals: 1
+    update_interval: never
+    filters:
+      - exponential_moving_average:
+          alpha: 0.2
+          send_every: 1
+    on_value:
+      then:
+        - component.update: filter_pressure      
+  - platform: template
+    name: "Filter Pressure"
+    id: filter_pressure
+    unit_of_measurement: "PSI"
+    accuracy_decimals: 1
+    update_interval: never
+    lambda: |-
+      return id(filter_pressure_raw).state;     
+    filters:
+      - calibrate_linear:
+          - 0.307 -> 0
+          - 3.06 -> 30
+    on_value:
+      - lvgl.label.update:
+          id: lbl_filter_pressure
+          text: !lambda |-
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f PSI", x);
+            return std::string(buf);
+      - lvgl.bar.update:
+          id: filter_pressure_bar
+          value: !lambda |-
+            return x;
+      - lvgl.widget.update:
+          id: filter_pressure_bar    
+          indicator:
+            bg_color: !lambda |-
+              float pressure = x;
+
+              if (id(Pump_Status) == "Low") {
+                float target = id(low_run).state / 10.0f;
+                if (pressure >= target * 1.20)
+                  return lv_color_hex(0xFF0000);
+                if (pressure >= target * 1.10)
+                  return lv_color_hex(0xFFFF00);
+                return lv_color_hex(0x00FF00);
+              }
+
+              if (id(Pump_Status) == "Med") {
+                float target = id(med_run).state / 10.0f;
+                if (pressure >= target * 1.20)
+                  return lv_color_hex(0xFF0000);
+                if (pressure >= target * 1.10)
+                  return lv_color_hex(0xFFFF00);
+                return lv_color_hex(0x00FF00);
+              }
+
+              if (id(Pump_Status) == "High") {
+                float target = id(high_run).state / 10.0f;
+                if (pressure >= target * 1.20)
+                  return lv_color_hex(0xFF0000);
+                if (pressure >= target * 1.10)
+                  return lv_color_hex(0xFFFF00);
+                return lv_color_hex(0x00FF00);
+              }
+
+              // Pump Off
+              return lv_color_hex(0x00FF00);                           
+
+button:
+  - platform: template
+    name: "Pump Off"
+    id: b_off
+    on_press:
+      then:
+        - if:
+            condition:
+              lambda: |-
+                return id(service_state) == "NORMAL";
+            then: 
+              - switch.turn_off: super_chlorinate
+              - switch.turn_off: chlor_power
+              - climate.control:
+                  id: pool_heater
+                  mode: "OFF"
+              - globals.set:
+                  id: Pump_Status
+                  value: '"Off"'
+              - switch.turn_off: speed_low
+              - switch.turn_off: speed_med
+              - switch.turn_off: speed_high    
+              - globals.set:
+                  id: Prev_Pump_Status
+                  value: '"Off"'
+              - lvgl.widget.update:
+                  id: pump_btn_off
+                  bg_color: 0xFF0000 # red
+              - lvgl.label.update:
+                  id: pump_lbl_btn_off
+                  text_color: 0x000000 # black    
+              - lvgl.widget.update:
+                  id: pump_btn_low
+                  bg_color: 0x606060 # dk_gray
+              - lvgl.label.update:
+                  id: pump_lbl_btn_low
+                  text_color: 0xFFFFFF # white    
+              - lvgl.widget.update:
+                  id: pump_btn_high
+                  bg_color: 0x606060 # dk_gray
+              - lvgl.label.update:
+                  id: pump_lbl_btn_high
+                  text_color: 0xFFFFFF # white    
+  - platform: template
+    name: "Pump Low"
+    id: b_low
+    on_press:
+      then:
+        - if:
+            condition:
+              lambda: |-
+                return id(service_state) == "NORMAL";
+            then:
+              - switch.turn_on: speed_low    
+              - globals.set:
+                  id: Prev_Pump_Status
+                  value: '"Low"'
+              - component.update: ha_desired_speed  
+              - switch.turn_on: chlor_power    
+
+  - platform: template
+    name: "Pump Medium"
+    id: b_med
+    internal: true
+    on_press:
+      then:
+        - if:
+            condition:
+              lambda: |-
+                return id(service_state) == "NORMAL";
+            then:
+              # PLACEHOLDER: 3-speed pump not installed yet - intentionally drives
+              # the speed_high relay until the real medium-speed relay exists.
+              - switch.turn_on: speed_high
+              - globals.set:
+                  id: Prev_Pump_Status
+                  value: '"High"'  # fix this on 3 speed install
+              - component.update: ha_desired_speed      
+  - platform: template
+    name: "Pump High"
+    id: b_high
+    on_press:
+      then:
+        - if:
+            condition:
+              lambda: |-
+                return id(service_state) == "NORMAL";
+            then:
+              - switch.turn_on: speed_high
+              - globals.set:
+                  id: Prev_Pump_Status
+                  value: '"High"'
+              - component.update: ha_desired_speed    
+              - switch.turn_on: chlor_power            
+
+switch:
+  - platform: gpio
+    pin:
+      xl9535: relays
+      number: 10
+      mode:
+        output: true
+      inverted: false 
+    id: speed_low
+    interlock: &interlock_group 
+      - speed_low
+      - speed_med
+      - speed_high 
+    interlock_wait_time: 1s
+    restore_mode: restore_default_off
+    on_turn_on:
+      - globals.set:
+          id: Pump_Status
+          value: '"Low"'
+      - component.update: ha_pump_status
+      - lvgl.widget.update:
+          id: pump_btn_off
+          bg_color: 0x606060 # dk_gray
+      - lvgl.label.update:
+          id: pump_lbl_btn_off
+          text_color: 0xFFFFFF # white      
+      - lvgl.widget.update:
+          id: pump_btn_low
+          bg_color: 0x00FF00 # green
+      - lvgl.label.update:
+          id: pump_lbl_btn_low
+          text_color: 0x000000 # black
+    on_turn_off:  
+      - component.update: ha_pump_status
+      - lvgl.widget.update:
+          id: pump_btn_low
+          bg_color: 0x606060 # dk_gray
+      - lvgl.label.update:
+          id: pump_lbl_btn_low
+          text_color: 0xFFFFFF # white      
+
+  - platform: gpio
+    pin: 
+      xl9535: relays
+      number: 11
+      mode:
+        output: true
+      inverted: false 
+    id: speed_med
+    interlock: *interlock_group
+    interlock_wait_time: 1s
+    restore_mode: always_off
+    internal: true
+    on_turn_on:
+      - globals.set:
+          id: Pump_Status
+          value: '"Med"'      
+      - component.update: ha_pump_status
+      - lvgl.widget.update:
+          id: pump_btn_off
+          bg_color: 0x606060 # dk_gray
+      - lvgl.label.update:
+          id: pump_lbl_btn_off
+          text_color: 0xFFFFFF # white      
+      - lvgl.widget.update:
+          id: pump_btn_med
+          bg_color: 0x00FF00 # green
+      - lvgl.label.update:
+          id: pump_lbl_btn_med
+          text_color: 0x000000 # black
+    on_turn_off:  
+      - component.update: ha_pump_status
+      - lvgl.widget.update:
+          id: pump_btn_med
+          bg_color: 0x606060 # dk_gray
+      - lvgl.label.update:
+          id: pump_lbl_btn_med
+          text_color: 0xFFFFFF # white 
+
+  - platform: gpio
+    pin: 
+      xl9535: relays
+      number: 12
+      mode:
+        output: true
+      inverted: false 
+    id: speed_high
+    interlock: *interlock_group
+    interlock_wait_time: 1s
+    restore_mode: restore_default_off
+    on_turn_on:
+      - globals.set:
+          id: Pump_Status
+          value: '"High"'
+      - component.update: ha_pump_status
+      - lvgl.widget.update:
+          id: pump_btn_off
+          bg_color: 0x606060 # dk_gray
+      - lvgl.label.update:
+          id: pump_lbl_btn_off
+          text_color: 0xFFFFFF # white
+      - lvgl.widget.update:
+          id: pump_btn_high
+          bg_color: 0x00FF00 # green
+      - lvgl.label.update:
+          id: pump_lbl_btn_high
+          text_color: 0x000000 # black
+    on_turn_off:  
+      - component.update: ha_pump_status
+      - lvgl.widget.update:
+          id: pump_btn_high
+          bg_color: 0x606060 # dk_gray
+      - lvgl.label.update:
+          id: pump_lbl_btn_high
+          text_color: 0xFFFFFF # white      
+
+  - platform: gpio
+    pin: 
+      xl9535: relays
+      number: 17
+      mode:
+        output: true
+      inverted: false 
+    id: fountain_valve
+    name: "Fountain"
+    restore_mode: restore_default_off
+    on_turn_on:
+      - if:
+          condition:
+            lambda: |-
+              return id(boot_complete) && (id(service_state) == "NORMAL");
+          then:
+            - lvgl.widget.update:
+                id: pump_btn_fountain
+                bg_color: 0x00ff00 # green
+            - lvgl.label.update:
+                id: pump_lbl_btn_fountain
+                text_color: 0x000000 # black 
+    on_turn_off:
+      - if:
+          condition:
+            lambda: |-
+              return id(boot_complete);
+          then:                 
+            - lvgl.widget.update:
+                id: pump_btn_fountain
+                bg_color: 0x606060 # dk_gray
+            - lvgl.label.update:
+                id: pump_lbl_btn_fountain
+                text_color: 0xFFFFFF # white
+  - platform: gpio
+    pin: 
+      xl9535: relays
+      number: 7
+      mode:
+        output: true
+      inverted: false 
+    id: fountain_pause
+    name: "Fountain Pause"
+    restore_mode: restore_default_off
+    on_turn_on:
+      - if:
+          condition:
+            lambda: |-
+              return id(boot_complete) && (id(service_state) == "NORMAL");
+          then:
+            - lvgl.widget.update:
+                id: pump_btn_fountain_pause
+                bg_color: 0xFF0000 # red
+            - lvgl.label.update:
+                id: pump_lbl_btn_fountain_pause
+                text_color: 0x000000 # black     
+    on_turn_off:
+      - if:
+          condition:
+            lambda: |-
+              return id(boot_complete);
+          then:                 
+            - lvgl.widget.update:
+                id: pump_btn_fountain_pause
+                bg_color: 0x606060 # dk_gray
+            - lvgl.label.update:
+                id: pump_lbl_btn_fountain_pause
+                text_color: 0xFFFFFF # white    
+
+
+
+text_sensor:  # can we make this update on chenge of status
+  - platform: template
+    name: HA Pump Status
+    id: ha_pump_status
+    lambda: |-
+      return { id(Pump_Status) };
+    update_interval: never  
+  - platform: template
+    name: HA Desired Speed
+    id: ha_desired_speed
+    lambda: |-
+      return { id(Prev_Pump_Status) };
+    update_interval: never
+
+number:
+  - platform: lvgl
+    widget: low_run_slider
+    name: "Low Speed Filter Baseline PSI"
+    id: low_run
+    restore_value: true
+    on_value:
+      - lvgl.label.update:
+          id: lbl_low_run_val
+          text: !lambda |-
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%.1f", x / 10.0f);
+            return std::string(buf);
+
+  - platform: lvgl
+    widget: med_run_slider
+    name: "Med Speed Filter Baseline PSI"
+    id: med_run
+    restore_value: true
+    on_value:
+      - lvgl.label.update:
+          id: lbl_med_run_val
+          text: !lambda |-
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%.1f", x / 10.0f);
+            return std::string(buf);
+
+  - platform: lvgl
+    widget: high_run_slider
+    name: "High Speed Filter Baseline PSI"
+    id: high_run
+    restore_value: true
+    on_value:
+      - lvgl.label.update:
+          id: lbl_high_run_val
+          text: !lambda |-
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%.1f", x / 10.0f);
+            return std::string(buf);

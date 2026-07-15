@@ -1,0 +1,92 @@
+sensor:
+
+  - platform: ads1115
+    ads1115_id: ads1
+    multiplexer: 'A0_GND'
+    gain: 4.096
+    name: "pH Voltage"
+    id: ph_voltage
+    update_interval: never
+    on_value:
+      then:
+        - component.update: ph_value
+  - platform: ads1115
+    ads1115_id: ads1
+    multiplexer: 'A1_GND'
+    gain: 4.096
+    name: "ORP Voltage"
+    id: orp_voltage
+    update_interval: never
+    on_value:
+      then:
+        - component.update: orp_value
+
+  - platform: ads1115
+    ads1115_id: ads1
+    multiplexer: 'A2_GND'
+    gain: 4.096
+    name: "Water Level raw"
+    id: water_level_raw 
+    update_interval: never
+    on_value:
+      then:
+        - component.update: water_level_state
+  - platform: template
+    name: "Water Level State"
+    id: water_level_state
+    update_interval: never 
+    lambda: |-
+      float v = id(water_level_raw).state;
+
+      if (v < 1.0) {
+        return 0;
+      } else if (v < 1.4) {
+        return 1;
+      } else if (v < 2.5) {
+        return 2;
+      } else {
+        return 3;
+      }
+
+  - platform: template
+    id: ph_value
+    name: "pH Value"
+    unit_of_measurement: "pH"
+    icon: "mdi:flask-outline"
+    update_interval: never
+    lambda: |-
+      // Get voltage from ads1115 sensor
+      float V = id(ph_voltage).state;
+      // Apply calibration formula
+      return (-5.654 * V) + 15.509;
+    on_value:
+      - lvgl.label.update:
+          id: dashboard_ph_lbl
+          text: !lambda |-
+            char buf[16];
+            snprintf(buf, sizeof(buf), "pH %.1f", x);
+            return std::string(buf);
+      - lvgl.indicator.update:
+          id: ph_needle
+          value: !lambda |-
+            return (int)(x * 10.0);
+  - platform: template
+    id: orp_value
+    name: "ORP Value"
+    unit_of_measurement: "mV"
+    icon: "mdi:flask-outline"
+    update_interval: never
+    lambda: |-
+      return (id(orp_voltage).state - 1.5) * 1000.0;
+    on_value:
+      - lvgl.label.update:
+          id: dashboard_orp_lbl
+          text: !lambda |-
+            char buf[32];
+            snprintf(buf, sizeof(buf), "ORP\n%.0f", x);
+            return std::string(buf);
+      - lvgl.indicator.update:
+          id: orp_needle
+          value: !lambda |-
+            return (int)(x);
+

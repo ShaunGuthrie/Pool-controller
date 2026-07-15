@@ -1,0 +1,935 @@
+lvgl:
+  buffer_size: 100%
+  byte_order: little_endian
+  displays:
+    - main_display
+  touchscreens:
+    - touch
+  
+  pages:
+    # ─────────────────────────────
+    # Main page 
+    # ─────────────────────────────
+    - id: main_page
+      bg_color: 0x000000 # black
+      bg_opa: Cover
+      pad_all: 0
+      widgets:
+        - obj:
+            width: 100%
+            height: 100%
+            scrollable: false
+            bg_color: 0x000000 # black
+            bg_opa: Cover
+            border_opa: transp
+            layout:
+              type: grid
+              grid_columns: [fr(1),fr(1),fr(1),fr(1),fr(1),fr(1),fr(1),fr(1)]
+              grid_rows: [60px,fr(1),fr(1),fr(1),fr(1),fr(1),fr(1),fr(1),fr(1),fr(1),fr(1)]
+            widgets:
+              # ─────────────────────────────
+              # Header
+              # ─────────────────────────────
+              - obj:
+                  styles: header
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 0
+                  grid_cell_column_span: 8
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  scrollable: false
+                  widgets:
+                    - label:
+                        id: head_lbl_build
+                        align: bottom_mid
+                        text_font: montserrat_12                 
+                    - label:
+                        id: head_lbl_a_temp
+                        align: left_mid
+                        text: "78 F"
+                    - label:
+                        id: head_lbl_water_temp
+                        align: left_mid
+                        x: 200
+                        text: "70 F"
+                    - label:
+                        align: top_mid
+                        text: "POOL CONTROL"    
+                    - button:
+                        id: head_btn_service_status
+                        align: top_right
+                        x: -50
+                        width: 150
+                        height: 50
+                        bg_opa: TRANSP
+                        border_width: 1
+                        on_click:
+                          - lambda: |-
+
+                              if (id(service_state) == "NORMAL") {
+                                id(service_stop_action).execute();
+                              }
+
+                              else if (id(service_state) == "SERVICE") {
+                                id(service_resume_action).execute();
+                              }
+
+                              // RUN = ignore
+
+                        widgets:
+                          - label:
+                              align: top_mid
+                              y: -3
+                              text: "SERVICE STATUS"
+                              text_font: montserrat_16
+
+                          - label:
+                              id: head_lbl_service_mode
+                              align: bottom_mid
+                              y: 3
+                              text: "Normal"
+                              text_font: montserrat_16
+
+                    - button:
+                        id: head_btn_service_run
+                        align: right_mid
+                        height: 40
+                        width: 40
+                        on_click:
+                          - lambda: |-
+
+                              if (id(service_state) == "SERVICE") {
+                                id(service_run_action).execute();
+                              }
+
+                              else if (id(service_state) == "RUN") {
+                                id(service_stop_action).execute();
+                              }
+
+                              // NORMAL = ignore
+
+                        widgets:
+                          - label:
+                              id: head_btn_lbl_service
+                              text: "\U000F0BE0"
+                              text_font: ui24
+                              align: center
+
+
+
+              # ─────────────────────────────
+              # Heater
+              # ─────────────────────────────
+              - obj:
+                  styles: object
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 1
+                  grid_cell_column_span: 3
+                  grid_cell_row_span: 5
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  scrollable: false
+                  widgets:
+                    - meter:
+                        width: 300
+                        height: 300
+                        align: center
+                        y: 50
+                        scales:
+                          - range_from: 70
+                            range_to: 100
+                            rotation: 180
+                            angle_range: 180
+                            ticks:
+                              count: 80
+                              width: 8
+                              length: 25
+                              radial_offset: 2
+                            indicators:
+                              - tick_style:
+                                  start_value: 70
+                                  end_value: 100
+                                  color_start: 0x0000FF # blue
+                                  color_end: 0xFF0000 # red
+                          - range_from: 70
+                            range_to: 100
+                            angle_range: 180
+                            indicators:
+                              - line:
+                                  id: temperature_needle
+                                  width: 5
+                                  value: 75
+                                  rounded: false
+                                  length: 27
+                                  radial_offset: 105
+                                  color: 0xFFFFFF # white
+                    - arc:
+                        id: thermostat_setpoint
+                        width: 275
+                        height: 275
+                        align: center
+                        y: 50
+
+                        min_value: 70
+                        max_value: 100
+                        value: 82
+
+                        start_angle: 180
+                        end_angle: 0
+
+                        adjustable: true
+
+                        bg_opa: TRANSP
+                        arc_opa: TRANSP
+
+                        indicator:
+                          arc_width: 25
+                          arc_opa: TRANSP
+
+
+                        knob:
+                          border_color: 0xFFB300 # orange
+                          border_width: 4
+                          bg_opa: TRANSP
+                          radius: 20
+                    - obj:
+                          width: 20
+                          height: 20
+                          radius: 10
+                          bg_color: 0x303030 # lt_black
+                          border_width: 0
+                          align: center
+                          y: 50
+                    - label:
+                        id: heat_lbl_rise
+                        align: top_left
+                        text: "4 F"
+                    - label:
+                        align: CENTER
+                        y: -5
+                        text: "SET"
+
+                    - label:
+                        id: heat_lbl_setpoint
+                        align: center
+                        y: 25
+                        text: "set 80F"
+                        text_font: montserrat_32
+                    - label:
+                        id: heat_lbl_status
+                        align: bottom_right
+                        
+                        text: "Off"
+                        text_font: montserrat_32    
+                    - button:
+                        width: 70
+                        height: 70
+                        align: bottom_mid
+                        bg_opa: transp
+                        border_opa: transp
+                        on_click:
+                          - lambda: |-
+                              auto call = id(pool_heater).make_call();
+                              if (id(pool_heater).mode == climate::CLIMATE_MODE_HEAT) {
+                                call.set_mode(climate::CLIMATE_MODE_OFF);
+                              } else {
+                                call.set_mode(climate::CLIMATE_MODE_HEAT);
+                              }
+                              call.perform();
+                        widgets:
+                          - label:
+                              id: heat_btn_lbl_status
+                              text: "\U000F1722"
+                              text_font: ui36
+                              align: bottom_mid       
+              # ─────────────────────────────
+              # Pump Valves, Filter
+              # ─────────────────────────────
+              - obj:
+                  styles: object
+                  grid_cell_column_pos: 3
+                  grid_cell_row_pos: 1
+                  grid_cell_column_span: 3
+                  grid_cell_row_span: 5
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  scrollable: false
+                  layout:
+                    type: flex
+                    flex_flow: COLUMN
+                    flex_align_main: START
+                    flex_align_cross: STRETCH
+                  widgets:
+
+                    # ── Row 1: Pump Speed Buttons (35%) ──
+                    - obj:
+                        width: 100%
+                        height: 35%
+                        bg_opa: TRANSP
+                        border_width: 0
+                        pad_all: 0
+                        layout:
+                          type: flex
+                          flex_flow: ROW
+                          flex_align_main: SPACE_AROUND
+                          flex_align_cross: CENTER
+                        widgets:
+                          - button:
+                              id: pump_btn_off
+                              flex_grow: 1
+                              height: 100%
+                              widgets:
+                                - label:
+                                    id: pump_lbl_btn_off
+                                    text: "OFF"
+                                    align: CENTER
+                              on_click:
+                                - button.press: b_off
+
+                          - button:
+                              id: pump_btn_low
+                              flex_grow: 1
+                              height: 100%
+                              widgets:
+                                - label:
+                                    id: pump_lbl_btn_low
+                                    text: "LOW"
+                                    align: CENTER
+                              on_click:
+                                - button.press: b_low
+
+                          - button:
+                              id: pump_btn_med
+                              flex_grow: 1
+                              height: 100%
+                              widgets:
+                                - label:
+                                    id: pump_lbl_btn_med
+                                    text: "MED"
+                                    align: CENTER
+                              on_click:
+                                - button.press: b_med
+
+                          - button:
+                              id: pump_btn_high
+                              flex_grow: 1
+                              height: 100%
+                              widgets:
+                                - label:
+                                    id: pump_lbl_btn_high
+                                    text: "HIGH"
+                                    align: CENTER
+                              on_click:
+                                - button.press: b_high
+
+                    # ── Row 2: Fountain / Future Fill (35%) ──
+                    - obj:
+                        width: 100%
+                        height: 35%
+                        bg_opa: TRANSP
+                        border_width: 0
+                        pad_all: 0
+                        layout:
+                          type: flex
+                          flex_flow: ROW
+                          flex_align_main: SPACE_AROUND
+                          flex_align_cross: CENTER
+                        widgets:
+                          - button:
+                              id: pump_btn_fountain
+                              flex_grow: 1
+                              height: 100%
+                              on_click:
+                                - if:
+                                    condition:
+                                      switch.is_on: fountain_valve
+                                    then:
+                                      - switch.turn_off: fountain_valve
+                                    else:
+                                      - switch.turn_on: fountain_valve
+                              widgets:
+                                - label:
+                                    id: pump_lbl_btn_fountain
+                                    text: "\U000F096B"
+                                    text_font: ui36
+                                    align: CENTER
+                          - button:
+                              id: pump_btn_fountain_pause
+                              flex_grow: 1
+                              height: 100%
+                              on_click:
+                                - if:
+                                    condition:
+                                      switch.is_on: fountain_pause
+                                    then:
+                                      - switch.turn_off: fountain_pause
+                                    else:
+                                      - switch.turn_on: fountain_pause
+                              widgets:
+                                - label:
+                                    text: "\U000F1066"
+                                    text_font: ui24
+                                    align: CENTER
+                                - label:
+                                    id: pump_lbl_btn_fountain_pause
+                                    text: "\U000F073A"
+                                    text_font: ui66
+                                    align: CENTER                   
+
+                    # ── Row 3: Filter Pressure (30%) ──
+                    - obj:
+                        width: 100%
+                        height: 25%
+                        bg_opa: TRANSP
+                        border_width: 0
+                        pad_all: 4
+                        layout:
+                          type: flex
+                          flex_flow: ROW
+                          flex_align_main: START
+                          flex_align_cross: CENTER
+                        widgets:
+                          - bar:
+                              id: filter_pressure_bar
+                              width: 275
+                              height: 25
+                              min_value: 0
+                              max_value: 20
+                              value: 0
+                             
+
+                          - button:
+                              id: btn_filter_pressure
+                              width: 50
+                              height: 100%
+                              bg_opa: TRANSP
+                              border_width: 0
+                              border_opa: transp
+                              shadow_width: 0
+                              
+                              on_long_press:
+                                - lvgl.widget.update:
+                                    id: pressure_popup
+                                    hidden: false
+                              widgets:
+                                - label:
+                                    id: lbl_filter_pressure
+                                    text: "0 PSI"
+                                    text_font: montserrat_14
+                                    align: CENTER
+
+              # ─────────────────────────────
+              # pH
+              # ─────────────────────────────
+              - obj:
+                  styles: object
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 6
+                  grid_cell_column_span: 3
+                  grid_cell_row_span: 5
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  scrollable: false
+                  widgets:
+                    - meter:
+                        width: 300
+                        height: 300
+                        align: center
+                        y: 50
+                        scales:
+                          - range_from: 65
+                            range_to: 85
+                            rotation: 180
+                            angle_range: 180
+                            ticks:
+                              count: 100
+                              width: 5
+                              length: 25
+                              radial_offset: 2
+                            indicators:
+                              - tick_style:
+                                  start_value: 65
+                                  end_value: 75
+                                  color_start: 0xFF0000 # red
+                                  color_end: 0x00FF00 # green
+                              - tick_style:
+                                  start_value: 75
+                                  end_value: 85
+                                  color_start: 0x00FF00 # green
+                                  color_end: 0xFF0000 # red 
+                          - range_from: 65
+                            range_to: 85
+                            rotation: 180
+                            angle_range: 180
+                            indicators:        
+                              - arc:
+                                  id: ph_target_arc
+                                  start_value: 72
+                                  end_value: 77
+                                  width: 15
+                                  opa: 40%
+                                  color: 0x43B043 # green 
+                                  rounded: true   
+                              - line:
+                                  id: ph_needle
+                                  width: 5
+                                  value: 75
+                                  rounded: false
+                                  length: 27
+                                  radial_offset: 105
+                                  color: 0xFFFFFF # white
+                    - obj:
+                          width: 20
+                          height: 20
+                          radius: 0
+                          bg_color: 0x303030 # lt_black
+                          border_width: 0
+                          align: center
+                          y: 50                                  
+                    - label:
+                        id: dashboard_ph_set_lbl
+                        align: CENTER
+                        y: -5
+                        text: "pH"
+                    - label:
+                        id: dashboard_ph_lbl
+                        align: center
+                        y: 25
+                        text: "pH 7.2"
+                        text_font: montserrat_32
+                    - button:
+                        id: btn_acid_dose
+                        width: 150
+                        height: 50
+                        align: bottom_mid
+                        on_click:
+                          - switch.toggle: dose_arm
+                        widgets:
+                          - label:
+                              id: btn_lbl_acid_dose
+                              text: "pH Routine"
+                              align: center 
+
+              # ─────────────────────────────
+              # Sanitation
+              # ─────────────────────────────
+              - obj:
+                  styles: object
+                  grid_cell_column_pos: 3
+                  grid_cell_row_pos: 6
+                  grid_cell_column_span: 3
+                  grid_cell_row_span: 5
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  scrollable: false
+                  widgets:
+                    - meter:
+                        width: 300
+                        height: 300
+                        align: center
+                        y: 50
+                        scales:
+                          - range_from: 400
+                            range_to: 1000
+                            rotation: 180
+                            angle_range: 180
+                            ticks:
+                              count: 500
+                              width: 5
+                              length: 25
+                              radial_offset: 2
+                            indicators:
+                              - tick_style:
+                                  start_value: 400
+                                  end_value: 700
+                                  color_start: 0xFF0000 # red
+                                  color_end: 0x00FF00 # green
+                              - tick_style:
+                                  start_value: 700
+                                  end_value: 1000
+                                  color_start: 0x00FF00 # green
+                                  color_end: 0xFF0000 # red 
+                          - range_from: 400
+                            range_to: 1000
+                            rotation: 180
+                            angle_range: 180
+                            indicators:
+                              - line:
+                                  id: orp_needle
+                                  width: 5
+                                  value: 700
+                                  rounded: false
+                                  length: 27
+                                  radial_offset: 105
+                                  color: 0xFFFFFF # white
+                    - obj:
+                          width: 20
+                          height: 20
+                          radius: 10
+                          bg_color: 0x303030 # lt_black
+                          border_width: 0
+                          align: center
+                          y: 50                    
+                    - button:
+                        id: btn_orp_label
+                        width: 150
+                        height: 150
+                        align: CENTER
+                        y: 25
+                        bg_opa: TRANSP
+                        border_width: 0
+                        shadow_width: 0
+                        on_long_press:
+                          - switch.turn_on: super_chlorinate
+      
+                        widgets:
+                          - label:
+                              id: dashboard_orp_lbl
+                              text: "ORP\n650"
+                              text_font: montserrat_32
+                              text_align: CENTER
+                              align: CENTER
+
+                    - button:
+                        id: super_chlor_overlay
+                        hidden: true
+                        width: 90%
+                        height: 50
+                        align: BOTTOM_MID
+                        y: -10
+                        bg_color: 0xFF6600
+                        border_width: 0
+                        radius: 8
+                        on_click:
+                          - switch.turn_off: super_chlorinate
+
+                        widgets:
+                          - label:
+                              text: "SUPER CHLORINATING"
+                              text_color: 0x000000
+                              align: CENTER
+                              y: -10
+                              text_font: montserrat_14
+                          - label:
+                              id: lbl_super_chlor_remaining
+                              text: "360 min remaining"
+                              text_color: 0x000000
+                              text_align: CENTER
+                              align: CENTER
+                              y: 10
+                              text_font: montserrat_14
+                    - slider:
+                          id: chlor_output_slider
+                          width: 80%
+                          height: 20
+                          min_value: 0
+                          max_value: 100
+                          bg_color: 0x333355
+                          bg_opa: COVER
+                          radius: 3
+                          align: bottom_left
+                          x: 15
+                          y: -10
+                          indicator:
+                            bg_color: 0x0077FF
+                            radius: 3
+                          knob:
+                            bg_color: 0x00AAFF
+                            border_color: 0xFFFFFF
+                            border_width: 2
+                            radius: 10
+                            width: 22
+                            height: 22  
+                    - label:
+                        id: lbl_chlor
+                        align: bottom_right
+                        y: -10
+                        text: "50%"
+                                          
+
+              # ─────────────────────────────
+              # Status 
+              # ─────────────────────────────
+              - obj:
+                  styles: object
+                  grid_cell_column_pos: 6
+                  grid_cell_row_pos: 1
+                  grid_cell_column_span: 2
+                  grid_cell_row_span: 9
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  scrollable: false
+                  layout:
+                    type: flex
+                    flex_flow: column
+                    flex_align_main: space_around
+                    flex_align_cross: center
+                  widgets:
+                      - label:
+                          text: "CHLORINATOR"
+                          text_font: montserrat_24
+                      - label:
+                          text: "Salt PPM"
+                      - label:
+                          id: lbl_salt_ppm
+                          text: ""
+                      - label:
+                          text: "Chlorinator status"    
+                      - label:
+                          id: lbl_chlor_status
+                          text: ""
+                      - label:
+                          text: "pH DOSE"
+                          text_font: montserrat_24            
+                      - label:
+                          text: "Last Dose Complete"
+                      - label:
+                          id: dose_end_time
+                          text: ""
+                      - label:
+                          text: "Last Dose Volume"    
+                      - label:
+                          id: acid_last_dose
+                          text: ""
+                      - label:
+                          text: "Last Start pH"    
+                      - label:
+                          id: last_start_ph
+                          text: ""                       
+                      
+
+              - obj:
+                  styles: object
+                  grid_cell_column_pos: 6
+                  grid_cell_row_pos: 10
+                  grid_cell_column_span: 2
+                  grid_cell_row_span: 1
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  scrollable: false
+                  layout:
+                    type: flex
+                    flex_flow: column
+                    flex_align_main: space_around
+                    flex_align_cross: center
+                  widgets:                          
+                      - label:
+                          id: lbl_uptime
+                          text: ""
+                      - label:
+                          id: lbl_wifi
+                          text: ""
+    
+        # ─────────────────────────────
+        # pressure popup 
+        # ─────────────────────────────
+
+        - obj:
+            id: pressure_popup
+            hidden: true
+            x: 50
+            y: 50
+            styles: object
+            width: 900
+            height: 500
+            border_color: 0x909090 # gray
+            border_width: 2
+            border_opa: cover
+            radius: 12
+            pad_all: 20
+            layout:
+              type: flex
+              flex_flow: COLUMN
+              flex_align_main: SPACE_EVENLY
+              flex_align_cross: STRETCH
+            widgets:
+
+              # ── Row 1: Low label + value ──
+              - obj:
+                  height: 40
+                  width: 100%
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  layout:
+                    type: flex
+                    flex_flow: ROW
+                    flex_align_main: SPACE_BETWEEN
+                    flex_align_cross: CENTER
+                  widgets:
+                    - label:
+                        text: "Low Speed Baseline PSI"
+                        text_font: montserrat_24
+
+                    - label:
+                        id: lbl_low_run_val
+                        text: "10.0"
+                        text_font: montserrat_24
+
+
+              # ── Row 2: Low slider ──
+              - slider:
+                  id: low_run_slider
+                  width: 100%
+                  height: 30
+                  min_value: 0
+                  max_value: 200
+                  value: 100
+                  bg_color: 0xC0C0C0 # lt_gray
+                  bg_opa: COVER
+                  radius: 3
+                  indicator:
+                    bg_color: 0x0066FF # royal
+                    radius: 3
+                  knob:
+                    bg_color: 0x0000FF # blue
+                    border_color: 0xFFFFFF # white
+                    border_width: 2
+                    radius: 10
+                    width: 50
+                    height: 50
+
+              # ── Row 3: Med label + value ──
+              - obj:
+                  height: 40
+                  width: 100%
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  layout:
+                    type: flex
+                    flex_flow: ROW
+                    flex_align_main: SPACE_BETWEEN
+                    flex_align_cross: CENTER
+                  widgets:
+                    - label:
+                        text: "Med Speed Baseline PSI"
+                        text_font: montserrat_24
+
+                    - label:
+                        id: lbl_med_run_val
+                        text: "10.0"
+                        text_font: montserrat_24
+
+              # ── Row 4: Med slider ──
+              - slider:
+                  id: med_run_slider
+                  width: 100%
+                  height: 30
+                  min_value: 0
+                  max_value: 200
+                  value: 100
+                  bg_color: 0xC0C0C0 # lt_gray
+                  bg_opa: COVER
+                  radius: 3
+                  indicator:
+                    bg_color: 0x0066FF # royal
+                    radius: 3
+                  knob:
+                    bg_color: 0x0000FF # blue
+                    border_color: 0xFFFFFF # white
+                    border_width: 2
+                    radius: 10
+                    width: 50
+                    height: 50
+
+              # ── Row 5: High label + value ──
+              - obj:
+                  height: 40
+                  width: 100%
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  layout:
+                    type: flex
+                    flex_flow: ROW
+                    flex_align_main: SPACE_BETWEEN
+                    flex_align_cross: CENTER
+                  widgets:
+                    - label:
+                        text: "High Speed Baseline PSI"
+                        text_font: montserrat_24
+
+                    - label:
+                        id: lbl_high_run_val
+                        text: "10.0"
+                        text_font: montserrat_24
+
+              # ── Row 6: High slider ──
+              - slider:
+                  id: high_run_slider
+                  width: 100%
+                  height: 30
+                  min_value: 0
+                  max_value: 200
+                  value: 100
+                  bg_color: 0xC0C0C0 # lt_gray
+                  bg_opa: COVER
+                  radius: 3
+                  indicator:
+                    bg_color: 0x0066FF # royal
+                    radius: 3
+                  knob:
+                    bg_color: 0x0000FF # blue
+                    border_color: 0xFFFFFF # white
+                    border_width: 2
+                    radius: 10
+                    width: 50
+                    height: 50
+              # ── pH Setpoint label + value ──
+              - obj:
+                  height: 40
+                  width: 100%
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  layout:
+                    type: flex
+                    flex_flow: ROW
+                    flex_align_main: SPACE_BETWEEN
+                    flex_align_cross: CENTER
+                  widgets:
+                    - label:
+                        text: "Desired pH"
+                        text_font: montserrat_24
+
+                    - label:
+                        id: lbl_ph_set_val
+                        text: "7.5"
+                        text_font: montserrat_24
+
+              # ── pH Setpoint slider ──
+              - slider:
+                  id: ph_set_slider
+                  width: 100%
+                  height: 30
+                  min_value: 72
+                  max_value: 78
+                  value: 75
+                  bg_color: 0xC0C0C0 # lt_gray
+                  bg_opa: COVER
+                  radius: 3
+                  indicator:
+                    bg_color: 0x0066FF # royal
+                    radius: 3
+                  knob:
+                    bg_color: 0x0000FF # blue
+                    border_color: 0xFFFFFF # white
+                    border_width: 2
+                    radius: 10
+                    width: 50
+                    height: 50      
+
+              # ── Row 9: Exit button ──
+              - button:
+                  width: 200
+                  height: 50
+
+                  on_click:
+                    - lvgl.widget.update:
+                        id: pressure_popup
+                        hidden: true
+                  widgets:
+                    - label:
+                        text: "Exit"
+                        align: CENTER

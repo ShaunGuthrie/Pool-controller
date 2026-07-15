@@ -1,0 +1,182 @@
+binary_sensor:
+  - platform: template
+    name: "No Flow"
+    id: chlor_error_no_flow
+  - platform: template
+    name: "Low Salt"
+    id: chlor_error_low_salt
+  - platform: template
+    name: "High Salt"
+    id: chlor_error_high_salt
+  - platform: template
+    name: "Clean Cell"
+    id: chlor_error_clean_cell
+
+switch:
+  - platform: gpio
+    pin:
+      xl9535: relays
+      number: 13
+      mode:
+        output: true
+      inverted: false
+    id: chlor_power
+    internal: true
+    restore_mode: restore_default_off
+
+  - platform: template
+    name: "Super Chlorinate"
+    id: super_chlorinate
+    optimistic: true
+    turn_on_action:
+      - globals.set:
+          id: super_chlor_remaining
+          value: '21600'
+      - lvgl.widget.update:
+          id: super_chlor_overlay
+          hidden: false
+      - lvgl.widget.update:
+          id: chlor_output_slider
+          hidden: true
+      - lvgl.widget.update:
+          id: lbl_chlor
+          hidden: true
+    turn_off_action:
+      - globals.set:
+          id: super_chlor_remaining
+          value: '0'
+      - lvgl.widget.update:
+          id: super_chlor_overlay
+          hidden: true
+      - lvgl.widget.update:
+          id: chlor_output_slider
+          hidden: false
+      - lvgl.widget.update:
+          id: lbl_chlor
+          hidden: false
+
+
+sensor:
+  - platform: template
+    name: "Chlorinator Salt PPM"
+    id: salt_ppm
+    unit_of_measurement: "ppm"
+    accuracy_decimals: 0
+    update_interval: never
+    on_value:
+      - lvgl.label.update:
+          id: lbl_salt_ppm
+          text: !lambda |-
+            char buf[16];
+            snprintf(buf, sizeof(buf), "%d PPM", (int)x);
+            return std::string(buf);
+  - platform: template
+    name: "Super Chlorinate Remaining"
+    id: super_chlor_remaining_sensor
+    unit_of_measurement: "min"
+    accuracy_decimals: 0
+    update_interval: never
+
+
+text_sensor:
+  - platform: template
+    name: "Chlorinator Status"
+    id: chlor_status_text
+    update_interval: never
+    on_value:
+      - lvgl.label.update:
+          id: lbl_chlor_status
+          text: !lambda return x;
+
+number:
+  - platform: lvgl
+    widget: chlor_output_slider
+    name: "Chlorinator Output %"
+    id: chlor_output_target
+    restore_value: true
+    trigger: on_release
+    on_value:
+      - lvgl.label.update:
+          id: lbl_chlor
+          text: !lambda |-
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%d%%", (int)x);
+            return std::string(buf);
+
+
+interval:
+  - interval: 5s
+    then:
+      - lambda: |-
+          // Guards
+          if (!id(chlor_power).state) return;
+          if (id(Pump_Status) == "Off") return;
+          if (id(service_state) != "NORMAL") return;
+
+          // Clear RX buffer
+          while (id(uart_bus).available()) {
+            uint8_t d; id(uart_bus).read_byte(&d);
+          }
+
+          // ── SET OUTPUT + decode salt/error response ──
+          uint8_t output = id(super_chlorinate).state ?
+                          101 : (uint8_t)id(chlor_output_target).state;
+          uint8_t pkt[8] = {
+            0x10, 0x02, 0x50, 0x11, output,
+            (uint8_t)((0x10+0x02+0x50+0x11+output) % 256),
+            0x10, 0x03
+          };
+
+          id(uart_bus).write_array(pkt, sizeof(pkt));
+
+          std::vector<uint8_t> rx;
+          uint32_t start = millis();
+          while (millis() - start < 400) {
+            uint8_t b;
+            if (id(uart_bus).available() && id(uart_bus).read_byte(&b))
+              rx.push_back(b);
+            else delay(5);
+          }
+
+          if (rx.size() >= 11) {
+            float ppm = rx[4] * 50.0f;
+            id(salt_ppm).publish_state(ppm);
+
+            uint8_t err = rx[5];
+            id(chlor_error_no_flow).publish_state(err & 0x01);
+            id(chlor_error_low_salt).publish_state(err & 0x02);
+            id(chlor_error_high_salt).publish_state(err & 0x04);
+            id(chlor_error_clean_cell).publish_state(err & 0x90);
+
+            std::string status = "OK";
+            if (err) {
+              status.clear();
+              if (err & 0x01) status += "No Flow ";
+              if (err & 0x02) status += "Low Salt ";
+              if (err & 0x04) status += "High Salt ";
+              if (err & 0x90) status += "Clean Cell ";
+              if (status.empty()) status = "Unknown Error";
+            }
+            id(chlor_status_text).publish_state(status.c_str());
+          }
+
+  - interval: 60s
+    then:
+      - lambda: |-
+          if (!id(super_chlorinate).state) return;
+          if (id(super_chlor_remaining) > 0) {
+            id(super_chlor_remaining) -= 60;
+            id(super_chlor_remaining_sensor).publish_state(
+              id(super_chlor_remaining) / 60.0);
+          }
+          if (id(super_chlor_remaining) <= 0) {
+            id(super_chlorinate).turn_off();
+            ESP_LOGI("chlor", "Super Chlorinate auto-off after 6h");
+          }
+      - lvgl.label.update:
+          id: lbl_super_chlor_remaining
+          text: !lambda |-
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%d min remaining", 
+                     id(super_chlor_remaining) / 60);
+            return buf;    

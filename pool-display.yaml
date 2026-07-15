@@ -8,8 +8,6 @@ esphome:
       - "-DLVGL_USE_VG_LITE"
     build_flags:
       - "-DLVGL_USE_VG_LITE=0"
-
-      
   on_boot:
     - priority: 600
       then:
@@ -24,9 +22,14 @@ esphome:
               return std::string("Build: ") + __DATE__ + " " + __TIME__;
     - priority: -100
       then:
-        - delay: 10s
+        - delay: 2s
         - lambda: |-
             id(boot_complete) = true;
+    - priority: -100
+      then:
+        - wait_until:
+            api.connected:
+        - component.update: ha_pump_status        
    
   
 esp32:
@@ -39,20 +42,18 @@ esp32:
       enable_idf_experimental_features: true
   flash_size: 32MB
   cpu_frequency: 360MHz
+  partitions: partitions.csv
 
-#ethernet:
-#  type: W5500
-#  mosi_pin: GPIO4
-#  miso_pin: GPIO5
-#  clk_pin: GPIO2
-#  cs_pin: GPIO3
-#  interrupt_pin: GPIO28
-#  reset_pin: GPIO29
-#  clock_speed: 20MHz
-#  manual_ip:
-#    static_ip: !secret pool_ip
-#    gateway: !secret gateway
-#    subnet: !secret subnet
+ethernet:
+  type: W5500
+  mosi_pin: GPIO4
+  miso_pin: GPIO5
+  clk_pin: GPIO2
+  cs_pin: GPIO3
+  interrupt_pin: GPIO28
+  reset_pin: GPIO29
+  clock_speed: 20MHz
+
 
 
 
@@ -67,26 +68,29 @@ esp_ldo:
   - voltage: 2.5V
     channel: 3
 
+safe_mode:
+  num_attempts: 3
+  reboot_timeout: 60s
+  boot_is_good_after: 30s
 
 logger:
   level: DEBUG
 
 debug:
 
-#ota:
-#  platform: esphome
+ota:
+  platform: esphome
 
-#api:
-
-#captive_portal:
+api:
+  reboot_timeout: 5min
   
-#web_server:
-#  port: 80
+web_server:
+  port: 80
 
-#http_request:
-#  useragent: esphome/cyd
-#  timeout: 10s
-#  verify_ssl: False
+http_request:
+  useragent: esphome/cyd
+  timeout: 10s
+  verify_ssl: False
 
 
 
@@ -99,9 +103,9 @@ packages:
   hardware: !include pool-display/hardware.yaml
   chemistry: !include pool-display/chemistry.yaml
   pump: !include pool-display/pump.yaml
-#  acid_dose: !include pool-display/acid_dose.yaml
+  acid_dose: !include pool-display/acid_dose.yaml
   chlorinator: !include pool-display/chlorinator.yaml
-#  schedule: !include pool-display/schedule.yaml
+  schedule: !include pool-display/schedule.yaml
   interfaces: !include pool-display/interface/interface_config.yaml
   fonts: !include pool-display/interface/fontscolors.yaml
   lvgl: !include pool-display/interface/lvgl_7_wave.yaml

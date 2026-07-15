@@ -1,0 +1,82 @@
+font:
+  - file: "gfonts://Roboto"
+    id: font1
+    size: 20
+  - file: "gfonts://Roboto"
+    id: font2
+    size: 15
+  - file: "gfonts://Roboto"
+    id: ui66
+    size: 66
+    bpp: 4
+    extras:
+      - file: "fonts/materialdesignicons-webfont.ttf"
+        glyphs: [
+          "\U000F096B", # mdi-fountain
+          "\U000F17C6", # mdi-water-sync
+          "\U000F17C5", # mdi-ph
+          "\U000F1402", # mdi-pump
+          "\U000F05b7", # mdi-wrench
+          "\U000F0BE0", # mdi-wrench-outline
+          "\U000F1722", # mdi-fire-off
+          "\U000F0238", # mdi-fire
+          "\U000F0143", # mdi-chevron-up
+          "\U000F0140", # mdi-chevron-down
+          "\U000F1066", # mdi-valve
+          "\U000F073A", # mdi-cancel
+          ]
+  - file: "gfonts://Roboto"
+    id: ui36
+    size: 42
+    bpp: 4
+    extras:
+      - file: "fonts/materialdesignicons-webfont.ttf"
+        glyphs: [
+          "\U000F096B", # mdi-fountain
+          "\U000F17C6", # mdi-water-sync
+          "\U000F17C5", # mdi-ph
+          "\U000F1402", # mdi-pump
+          "\U000F05b7", # mdi-wrench
+          "\U000F0BE0", # mdi-wrench-outline
+          "\U000F1722", # mdi-fire-off
+          "\U000F0238", # mdi-fire
+          "\U000F0143", # mdi-chevron-up
+          "\U000F0140", # mdi-chevron-down
+          "\U000F1066", # mdi-valve
+          "\U000F073A", # mdi-cancel
+          ]
+  - file: "gfonts://Roboto"
+    id: ui24
+    size: 24
+    bpp: 4
+    extras:
+      - file: "fonts/materialdesignicons-webfont.ttf"
+        glyphs: [
+          "\U000F096B", # mdi-fountain
+          "\U000F17C6", # mdi-water-sync
+          "\U000F17C5", # mdi-ph
+          "\U000F1402", # mdi-pump
+          "\U000F05b7", # mdi-wrench
+          "\U000F0BE0", # mdi-wrench-outline
+          "\U000F1722", # mdi-fire-off
+          "\U000F0238", # mdi-fire
+          "\U000F0143", # mdi-chevron-up
+          "\U000F0140", # mdi-chevron-down
+          "\U000F1066", # mdi-valve
+          "\U000F073A", # mdi-cancel
+          ]   
+  #0xFF0000 # red
+  #0xFFB300 # orange
+  #0xFFFF00 # yellow
+  #0x00FF00 # broght green
+  #0x43B043 # green 
+  #0x0000FF # blue
+  #0x0066FF # royal
+  #0x00A0FF # brt_blue
+  #0x00FFFF # aqua
+  #0xFFFFFF # white
+  #0xC0C0C0 # lt_gray
+  #0x909090 # gray
+  #0x606060 # dk_gray
+  #0x303030 # lt_black
+  #0x000000 # black

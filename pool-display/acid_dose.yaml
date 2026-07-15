@@ -1,0 +1,401 @@
+sensor:
+- platform: template
+  name: "pH Dosing Active"
+  id: ph_dosing_active
+  update_interval: never
+
+- platform: template
+  name: "pH Dose Remaining"
+  id: ph_dose_remaining_sensor
+  unit_of_measurement: "min"
+  accuracy_decimals: 0
+  lambda: |-
+    return id(ph_dose);
+
+- platform: template
+  name: "pH Dose Target"
+  id: ph_dose_target_sensor
+  unit_of_measurement: "min"
+  accuracy_decimals: 0
+  lambda: |-
+    return id(ph_dose_target);
+
+
+switch:
+  - platform: template
+    name: "Acid Dosing Arm"
+    id: dose_arm
+    optimistic: true
+    turn_on_action:
+      - switch.turn_on: dose_arm_relay  # ← physical relay on
+      - if:
+          condition:
+            lambda: 'return id(ph_value).state <= id(ph_set).state;'
+          then:
+            - switch.turn_off: dose_arm_relay  # ← pH OK, turn back off
+            - logger.log: "pH already in range, no dose needed"
+            - lvgl.label.update:
+                id: btn_lbl_acid_dose
+                text: "pH OK"
+                text_color: 0x00FF44
+            - delay: 2s
+            - lvgl.label.update:
+                id: btn_lbl_acid_dose
+                text: "pH Routine"
+                text_color: 0xFFFFFF
+          else:
+            - globals.set:
+                id: dose_armed
+                value: 'true'
+            - lvgl.label.update:
+                id: btn_lbl_acid_dose
+                text: "Armed"
+                text_color: 0x000000
+            - lvgl.widget.update:
+                id: btn_acid_dose
+                bg_color: 0xffB300
+
+    turn_off_action:
+      - switch.turn_off: dose_arm_relay  # ← physical relay off first
+      - globals.set:
+          id: dose_armed
+          value: 'false'
+      - lvgl.label.update:
+          id: btn_lbl_acid_dose
+          text: "pH Routine"
+          text_color: 0xFFFFFF
+      - lvgl.widget.update:
+          id: btn_acid_dose
+          bg_color: 0x606060
+  - platform: gpio
+    pin:
+      xl9535: relays
+      number: 15
+      mode:
+        output: true
+      inverted: false
+    id: dose_arm_relay
+    internal: true
+    restore_mode: ALWAYS_OFF
+  - platform: gpio
+    name: "acid Dosing Pump"
+    pin: 
+      xl9535: relays
+      number: 6
+      mode:
+        output: true
+      inverted: false 
+    id: dosing_pump
+    restore_mode: always_off
+    on_turn_on:
+      - lvgl.label.update:
+          id: btn_lbl_acid_dose
+          text: "DOSING"
+          text_color: 0x000000 
+      - lvgl.widget.update:
+          id: btn_acid_dose
+          bg_color: 0xff0000
+    on_turn_off:
+      - lvgl.label.update:
+          id: btn_lbl_acid_dose
+          text: "Armed"
+          text_color: 0x000000 
+      - lvgl.widget.update:
+          id: btn_acid_dose
+          bg_color: 0xffB300    
+
+    
+number:
+  - platform: lvgl
+    widget: ph_set_slider
+    name: "Desired pH"
+    id: ph_set
+    restore_value: true
+    trigger: on_release
+    on_value:
+      - lvgl.label.update:
+          id: lbl_ph_set_val
+          text: !lambda |-
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%.1f", x / 10.0f);
+            return std::string(buf);
+      - lvgl.label.update:
+          id: dashboard_ph_set_lbl
+          text: !lambda |-
+            char buf[32];
+            snprintf(buf, sizeof(buf), "pH Set %.1f", x / 10.0f);
+            return std::string(buf);
+      - lvgl.indicator.update:
+          id: ph_target_arc
+          start_value: !lambda return x - 2;
+          end_value: !lambda return x + 2; 
+  - platform: template
+    name: "Dose Recheck Interval (min)"
+    id: dose_recheck_interval
+    min_value: 20
+    max_value: 60
+    step: 5
+    initial_value: 30
+    restore_value: true
+    optimistic: true
+    unit_of_measurement: "min"
+
+  - platform: template
+    name: "Max Session Dose (min)"
+    id: dose_max_session
+    min_value: 10
+    max_value: 60
+    step: 5
+    initial_value: 30
+    restore_value: true
+    optimistic: true
+    unit_of_measurement: "min"
+
+  - platform: template
+    name: "Max Single Dose (min)"
+    id: dose_max_single
+    min_value: 5
+    max_value: 60
+    step: 5
+    initial_value: 30
+    restore_value: true
+    optimistic: true
+    unit_of_measurement: "min"
+
+interval:
+  - interval: 30s
+    then:
+      - lambda: |-
+          // ── Get current time ──
+          auto now = id(pool_time).now();
+          if (!now.is_valid()) return;
+          int current = now.hour*3600 + now.minute*60 + now.second;
+
+          // ════════════════════════════════════════
+          // WATCHDOG — always runs first
+          // ════════════════════════════════════════
+          if (id(dosing_pump).state) {
+            int elapsed = current - id(dose_pump_start_time);
+            if (elapsed < 0) elapsed += 86400; // midnight rollover
+            if (elapsed > (int)(id(dose_max_single).state * 60)) {
+              id(dosing_pump).turn_off();
+              id(dose_arm).turn_off();
+              id(service_state) = "NORMAL";
+              id(dose_state) = "idle";
+              id(ph_dosing_running) = false;
+              id(ph_dosing_active).publish_state(0.0);
+              id(speed_low).turn_on();
+              ESP_LOGE("dose", "SAFETY WATCHDOG: pump killed - exceeded max single dose runtime");
+              return;
+            }
+          }
+
+          // ════════════════════════════════════════
+          // STATE: idle — wait for midnight
+          // ════════════════════════════════════════
+          if (id(dose_state) == "idle") {
+            if (!id(dose_armed)) return;
+            if (now.hour != 0 || now.minute != 0) return;
+
+            // Midnight checks
+            if (id(service_state) != "NORMAL") {
+              ESP_LOGW("dose", "Midnight: blocked by service mode");
+              return;
+            }
+
+            float current_ph = id(ph_value).state;
+            float target_ph = id(ph_set).state / 10.0f;
+
+            if (current_ph <= target_ph) {
+              ESP_LOGI("dose", "Midnight: pH in range (%.1f), disarming", current_ph);
+              id(dose_arm).turn_off();
+              return;
+            }
+
+            // ── Calculate total session budget from pH deviation ──
+            float diff = current_ph - target_ph;
+            int total_dose_needed;
+            if (diff < 0.2f)      total_dose_needed = 10;
+            else if (diff < 0.4f) total_dose_needed = 20;
+            else if (diff < 0.6f) total_dose_needed = 30;
+            else                  total_dose_needed = (int)id(dose_max_single).state;
+
+            // Cap at user session budget
+            int session_budget = (int)id(dose_max_session).state;
+            if (total_dose_needed > session_budget)
+              total_dose_needed = session_budget;
+
+            // Store calculated budget — this is the hard ceiling
+            id(ph_dose_target) = total_dose_needed;
+            id(ph_dose) = total_dose_needed;  // remaining budget
+
+            // ── Start session ──
+            id(service_state) = "DOSING";
+            id(speed_high).turn_on();
+            id(last_dose_start_ph) = current_ph;
+            id(dose_minutes_run) = 0;
+            id(dose_session_minutes_used) = 0;
+            id(ph_dosing_running) = true;
+            id(ph_dosing_active).publish_state(1.0);
+
+            // First dose — sliding scale but capped at remaining budget
+            int dose_mins;
+            if (diff < 0.2f)      dose_mins = 10;
+            else if (diff < 0.4f) dose_mins = 20;
+            else if (diff < 0.6f) dose_mins = 30;
+            else                  dose_mins = (int)id(dose_max_single).state;
+
+            dose_mins = min(dose_mins, id(ph_dose));  // cap at budget
+
+            ESP_LOGI("dose", "Midnight: pH=%.1f target=%.1f diff=%.1f budget=%d min first_dose=%d min",
+              current_ph, target_ph, diff, total_dose_needed, dose_mins);
+
+            id(dosing_pump).turn_on();
+            id(dose_pump_start_time) = current;
+            id(dose_wait_until) = current + (dose_mins * 60);
+            id(dose_state) = "pump_running";
+            return;
+          }
+
+          // ════════════════════════════════════════
+          // STATE: pump_running
+          // ════════════════════════════════════════
+          if (id(dose_state) == "pump_running") {
+
+            // Service mode abort
+            if (id(service_state) != "DOSING") {
+              id(dosing_pump).turn_off();
+              id(ph_dosing_running) = false;
+              id(ph_dosing_active).publish_state(0.0);
+              id(dose_state) = "idle";
+              id(speed_low).turn_on();
+              ESP_LOGW("dose", "Pump running: aborted — service mode changed");
+              return;
+            }
+
+            if (current >= id(dose_wait_until)) {
+              // ── Pump cycle complete ──
+              id(dosing_pump).turn_off();
+
+              // Calculate how many minutes actually ran
+              int elapsed = current - id(dose_pump_start_time);
+              if (elapsed < 0) elapsed += 86400;
+              int mins_run = elapsed / 60;
+
+              // Deduct from calculated budget
+              id(ph_dose) -= mins_run;
+              if (id(ph_dose) < 0) id(ph_dose) = 0;
+
+              // Track session total
+              id(dose_session_minutes_used) += mins_run;
+              id(dose_minutes_run) += mins_run;
+
+              id(ph_dose_remaining_sensor).publish_state(id(ph_dose));
+
+              ESP_LOGI("dose", "Pump cycle done: ran=%d min budget_remaining=%d min session_total=%d min",
+                mins_run, id(ph_dose), id(dose_session_minutes_used));
+
+              // Set recheck wait from pump stop time
+              id(dose_wait_until) = current + (int)(id(dose_recheck_interval).state * 60);
+              id(dose_state) = "waiting_recheck";
+            }
+            return;
+          }
+
+          // ════════════════════════════════════════
+          // STATE: waiting_recheck
+          // ════════════════════════════════════════
+          if (id(dose_state) == "waiting_recheck") {
+            if (current < id(dose_wait_until)) return;
+
+            float current_ph = id(ph_value).state;
+            float target_ph = id(ph_set).state / 10.0f;
+
+            ESP_LOGI("dose", "Recheck: pH=%.1f target=%.1f budget_remaining=%d min session=%d/%d min",
+              current_ph, target_ph,
+              id(ph_dose),
+              id(dose_session_minutes_used),
+              (int)id(dose_max_session).state);
+
+            // ── Exit conditions ──
+            bool ph_good          = current_ph <= target_ph;
+            bool budget_exhausted = id(ph_dose) <= 0;
+            bool session_capped   = id(dose_session_minutes_used) >= (int)id(dose_max_session).state;
+            bool service_changed  = id(service_state) != "DOSING";
+
+            if (ph_good)
+              ESP_LOGI("dose", "Recheck: pH in range — complete");
+            if (budget_exhausted)
+              ESP_LOGW("dose", "Recheck: calculated budget exhausted — stopping");
+            if (session_capped)
+              ESP_LOGW("dose", "Recheck: session cap reached — stopping");
+            if (service_changed)
+              ESP_LOGW("dose", "Recheck: service mode changed — aborting");
+
+            if (ph_good || budget_exhausted || session_capped || service_changed) {
+              // ── Clean up session ──
+              id(dosing_pump).turn_off();  // safety
+              id(last_dose_minutes) = id(dose_minutes_run);
+              id(ph_dosing_running) = false;
+              id(ph_dosing_active).publish_state(0.0);
+              id(dose_state) = "idle";
+              id(service_state) = "NORMAL";
+              id(speed_low).turn_on();
+              id(dose_arm).turn_off();
+              id(dose_complete_flag) = true;  // ← signal LVGL updates needed
+              return;
+            }
+
+            // ── pH still high, budget remaining — dose again ──
+            float diff = current_ph - target_ph;
+            int dose_mins;
+            if (diff < 0.2f)      dose_mins = 10;
+            else if (diff < 0.4f) dose_mins = 20;
+            else if (diff < 0.6f) dose_mins = 30;
+            else                  dose_mins = (int)id(dose_max_single).state;
+
+            // Cap at remaining calculated budget AND session budget
+            int remaining_session = (int)id(dose_max_session).state - id(dose_session_minutes_used);
+            dose_mins = min(dose_mins, id(ph_dose));
+            dose_mins = min(dose_mins, remaining_session);
+
+            if (dose_mins <= 0) {
+              ESP_LOGW("dose", "Recheck: no budget remaining despite pH high — stopping");
+              id(dose_state) = "idle";
+              id(service_state) = "NORMAL";
+              id(speed_low).turn_on();
+              id(dose_arm).turn_off();
+              return;
+            }
+
+            ESP_LOGI("dose", "Recheck: dosing again for %d min (diff=%.1f)", dose_mins, diff);
+
+            id(dosing_pump).turn_on();
+            id(dose_pump_start_time) = current;
+            id(dose_wait_until) = current + (dose_mins * 60);
+            id(dose_state) = "pump_running";
+          }
+      - if:
+          condition:
+            lambda: return id(dose_complete_flag);
+          then:
+            - lvgl.label.update:
+                id: dose_end_time
+                text: !lambda |-
+                  auto t = id(pool_time).now();
+                  char buf[16];
+                  snprintf(buf, sizeof(buf), "%02d:%02d", t.hour, t.minute);
+                  return std::string(buf);
+            - lvgl.label.update:
+                id: acid_last_dose
+                text: !lambda |-
+                  char buf[32];
+                  snprintf(buf, sizeof(buf), "Last Dose: %d min", id(last_dose_minutes));
+                  return std::string(buf);
+            - lvgl.label.update:
+                id: last_start_ph
+                text: !lambda |-
+                  char buf[32];
+                  snprintf(buf, sizeof(buf), "Start pH: %.1f", id(last_dose_start_ph));
+                  return std::string(buf);
+            - lambda: id(dose_complete_flag) = false;         

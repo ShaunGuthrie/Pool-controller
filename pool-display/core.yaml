@@ -1,0 +1,99 @@
+
+sensor:
+  - platform: dht
+    pin: GPIO46
+    model: DHT22
+    id: enclosure
+    temperature:
+      name: "Enclosure Temp"
+      unit_of_measurement: "°F"
+      accuracy_decimals: 0
+      filters:
+        - lambda: |-
+            return round(x * 9.0 / 5.0 + 32.0);
+
+    humidity:
+      name: "Enclosure Humidity"
+    update_interval: never  
+
+
+  - platform: uptime
+    name: "Uptime Seconds"
+    id: uptime_sec
+    update_interval: 10s
+
+text_sensor:
+  - platform: ethernet_info
+    ip_address:
+      name: "IP Address"
+      id: eth_ip_address
+      on_value:
+        - lvgl.label.update:
+            id: lbl_wifi
+            text: !lambda |-
+              return "IP: " + x;
+
+  
+interval:
+  - interval: 10s
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(boot_complete);
+          then:    
+            - lvgl.label.update:
+                id: lbl_uptime
+                text: !lambda |-
+                  uint32_t s = (uint32_t) id(uptime_sec).state;
+                  int h = s / 3600;
+                  int m = (s % 3600) / 60;
+                  int d = h / 24;
+                  h %= 24;
+
+                  char buf[32];
+                  snprintf(buf, sizeof(buf), "Uptime %dd %02dh %02dm", d, h, m);
+                  return std::string(buf); 
+
+  - interval: 60s
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(boot_complete);
+          then:
+            - component.update: filter_pressure_raw
+            - component.update: ph_voltage
+            - component.update: water_level_raw
+            - component.update: orp_voltage
+
+  - interval: 30s
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(boot_complete);
+          then:
+            - component.update: temp_in_adc
+            - component.update: temp_out_adc
+            - component.update: ambient_adc
+            - component.update: enclosure
+
+  - interval: 60s
+    then:
+      - lambda: |-
+          ESP_LOGI("sys", "Internal heap: %lu bytes", 
+            heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+          ESP_LOGI("sys", "PSRAM free: %lu bytes",
+            heap_caps_get_free_size(MALLOC_CAP_SPIRAM));       
+
+button:
+  - platform: template
+    name: "Log Level Debug"
+    on_press:
+      - lambda: esp_log_level_set("*", ESP_LOG_DEBUG);
+
+  - platform: template
+    name: "Log Level Warn"
+    on_press:
+      - lambda: esp_log_level_set("*", ESP_LOG_WARN);

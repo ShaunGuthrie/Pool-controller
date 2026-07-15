@@ -1,0 +1,49 @@
+
+
+
+
+script:
+  - id: toggle_log
+    then:
+      - lambda: |-
+          id(log_debug_enabled) = !id(log_debug_enabled);
+          ESP_LOGI("logger", id(log_debug_enabled) ? 
+            "Log Level → DEBUG" : "Log Level → INFO");
+
+      - if:
+          condition:
+            lambda: 'return id(log_debug_enabled);'
+          then:
+            - logger.set_level: DEBUG
+          else:
+            - logger.set_level: INFO
+
+
+
+sensor:
+  - platform: ads1115
+    ads1115_id: ads0
+    multiplexer: 'A0_GND'
+    gain: 4.096
+    name: "3v rail"
+  - platform: ads1115
+    ads1115_id: ads0
+    multiplexer: 'A1_GND'
+    gain: 2.048
+    name: "5v rail"
+    filters:
+     - multiply: !lambda return 3;  
+  - platform: ads1115
+    ads1115_id: ads0
+    multiplexer: 'A2_GND'
+    gain: 4.096
+    name: "12v rail"
+    filters:
+     - multiply: !lambda return 5;  
+
+button:
+  - platform: template
+    name: "Toggle Log Level"
+    on_press:
+      - script.execute: toggle_log
+
