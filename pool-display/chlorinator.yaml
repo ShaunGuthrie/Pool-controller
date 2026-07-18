@@ -114,8 +114,8 @@ interval:
           if (id(service_state) != "NORMAL") return;
 
           // Clear RX buffer
-          while (id(uart_bus).available()) {
-            uint8_t d; id(uart_bus).read_byte(&d);
+          while (id(uart_chlor).available()) {
+            uint8_t d; id(uart_chlor).read_byte(&d);
           }
 
           // ── SET OUTPUT + decode salt/error response ──
@@ -127,15 +127,41 @@ interval:
             0x10, 0x03
           };
 
-          id(uart_bus).write_array(pkt, sizeof(pkt));
+          id(uart_chlor).write_array(pkt, sizeof(pkt));
+          id(uart_chlor).flush();
+          delay(10);
 
+          ESP_LOGI("chlor", "TX: %02X %02X %02X %02X %02X %02X %02X %02X",
+            pkt[0], pkt[1], pkt[2], pkt[3], pkt[4], pkt[5], pkt[6], pkt[7]);
+          id(uart_chlor).write_array(pkt, sizeof(pkt));
+
+       
+
+          // Listen longer to catch echo + response
           std::vector<uint8_t> rx;
           uint32_t start = millis();
-          while (millis() - start < 400) {
+          while (millis() - start < 500) {
             uint8_t b;
-            if (id(uart_bus).available() && id(uart_bus).read_byte(&b))
+            if (id(uart_chlor).available() && id(uart_chlor).read_byte(&b))
               rx.push_back(b);
             else delay(5);
+          }
+
+          if (rx.empty()) {
+            ESP_LOGW("chlor", "No response");
+          } else if (rx.size() < 9) {
+            ESP_LOGW("chlor", "Short response %d bytes: %02X %02X %02X %02X %02X",
+              rx.size(),
+              rx.size() > 0 ? rx[0] : 0,
+              rx.size() > 1 ? rx[1] : 0,
+              rx.size() > 2 ? rx[2] : 0,
+              rx.size() > 3 ? rx[3] : 0,
+              rx.size() > 4 ? rx[4] : 0);
+          } else {
+            ESP_LOGD("chlor", "RX OK %d bytes: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X",
+              rx.size(),
+              rx[0], rx[1], rx[2], rx[3], rx[4],
+              rx[5], rx[6], rx[7], rx[8], rx[9], rx[10]);
           }
 
           if (rx.size() >= 11) {

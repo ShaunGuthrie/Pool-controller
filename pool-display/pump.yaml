@@ -151,7 +151,7 @@ binary_sensor:
         - script.execute: service_resume_action
 sensor:
   - platform: ads1115
-    ads1115_id: ads0
+    ads1115_id: ads1
     multiplexer: 'A3_GND'
     gain: 4.096
     name: "Filter Pressure raw"
@@ -324,7 +324,7 @@ switch:
   - platform: gpio
     pin:
       xl9535: relays
-      number: 10
+      number: 1
       mode:
         output: true
       inverted: false 
@@ -364,7 +364,7 @@ switch:
   - platform: gpio
     pin: 
       xl9535: relays
-      number: 11
+      number: 2
       mode:
         output: true
       inverted: false 
@@ -402,7 +402,7 @@ switch:
   - platform: gpio
     pin: 
       xl9535: relays
-      number: 12
+      number: 3
       mode:
         output: true
       inverted: false 

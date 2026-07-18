@@ -1,20 +1,23 @@
 
-sensor:
-  - platform: dht
-    pin: GPIO46
-    model: DHT22
-    id: enclosure
-    temperature:
-      name: "Enclosure Temp"
-      unit_of_measurement: "°F"
-      accuracy_decimals: 0
-      filters:
-        - lambda: |-
-            return round(x * 9.0 / 5.0 + 32.0);
+syslog:
+  port: 1514
+  strip: true
 
-    humidity:
-      name: "Enclosure Humidity"
-    update_interval: never  
+sensor:
+#  - platform: dht
+#    pin: GPIO46
+#    model: DHT22
+#    id: enclosure
+#    temperature:
+#      name: "Enclosure Temp"
+#      unit_of_measurement: "°F"
+#      accuracy_decimals: 0
+#      filters:
+#        - lambda: |-
+#            return round(x * 9.0 / 5.0 + 32.0);
+#    humidity:
+#      name: "Enclosure Humidity"
+#    update_interval: never  
 
 
   - platform: uptime
@@ -77,7 +80,7 @@ interval:
             - component.update: temp_in_adc
             - component.update: temp_out_adc
             - component.update: ambient_adc
-            - component.update: enclosure
+#            - component.update: enclosure
 
   - interval: 60s
     then:
@@ -94,6 +97,14 @@ button:
       - lambda: esp_log_level_set("*", ESP_LOG_DEBUG);
 
   - platform: template
+    name: "Log Level Info"
+    on_press:
+      - lambda: esp_log_level_set("*", ESP_LOG_INFO);      
+
+  - platform: template
     name: "Log Level Warn"
     on_press:
       - lambda: esp_log_level_set("*", ESP_LOG_WARN);
+
+
+    

@@ -81,7 +81,7 @@ switch:
     name: "acid Dosing Pump"
     pin: 
       xl9535: relays
-      number: 6
+      number: 14
       mode:
         output: true
       inverted: false 

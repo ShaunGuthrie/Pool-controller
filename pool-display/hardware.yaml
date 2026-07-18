@@ -1,12 +1,24 @@
 uart:
-  id: uart_bus
-  tx_pin: GPIO27
-  rx_pin: GPIO26
-  baud_rate: 9600
-  data_bits: 8
-  parity: NONE
-  stop_bits: 1
-  rx_buffer_size: 256     
+  - id: uart_chlor
+    tx_pin: GPIO30
+    rx_pin: GPIO31
+    baud_rate: 9600
+    data_bits: 8
+    parity: NONE
+    stop_bits: 1
+    rx_buffer_size: 256
+
+  - id: uart_vs_pump
+    tx_pin: GPIO47
+    rx_pin: GPIO48
+
+    baud_rate: 9600
+    data_bits: 8
+    parity: NONE
+    stop_bits: 1
+    rx_buffer_size: 256    
+
+
 
 
 

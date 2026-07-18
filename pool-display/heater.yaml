@@ -48,6 +48,8 @@ sensor:
       b_constant: 3950
       reference_temperature: 25°C
       reference_resistance: 10kOhm
+    filters:
+    - offset: -1.7
     on_value:
       then:
         - if:
@@ -90,6 +92,8 @@ sensor:
       b_constant: 3950
       reference_temperature: 25°C
       reference_resistance: 10kOhm
+    filters:
+    - offset: -1.7      
     on_value:
       then:
         - if:
@@ -122,6 +126,7 @@ sensor:
     device_class: temperature
     state_class: measurement
     filters:
+      - offset: -4.4
       - lambda: return x * 9.0 / 5.0 + 32.0;    
     calibration:
       b_constant: 3950
@@ -166,7 +171,7 @@ switch:
   - platform: gpio
     pin: 
       xl9535: relays
-      number: 14
+      number: 0
       mode:
         output: true
       inverted: false 

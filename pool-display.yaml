@@ -12,7 +12,18 @@ esphome:
     - priority: 600
       then:
         - lambda: |-
-            id(reboot_count)++;     
+            id(reboot_count)++;
+          
+            esp_reset_reason_t reason = esp_reset_reason();
+            switch(reason) {
+              case ESP_RST_POWERON:   ESP_LOGI("boot", "Reset: Power on"); break;
+              case ESP_RST_BROWNOUT:  ESP_LOGE("boot", "Reset: BROWNOUT"); break;
+              case ESP_RST_WDT:       ESP_LOGE("boot", "Reset: Watchdog"); break;
+              case ESP_RST_PANIC:     ESP_LOGE("boot", "Reset: Panic/crash"); break;
+              case ESP_RST_SW:        ESP_LOGI("boot", "Reset: Software"); break;
+              case ESP_RST_DEEPSLEEP: ESP_LOGI("boot", "Reset: Deep sleep"); break;
+              default:                ESP_LOGW("boot", "Reset: Unknown (%d)", reason); break;
+            } 
     - priority: -10
       then:
         - delay: 15s
@@ -25,6 +36,7 @@ esphome:
         - delay: 2s
         - lambda: |-
             id(boot_complete) = true;
+            esp_log_level_set("*", ESP_LOG_INFO);
     - priority: -100
       then:
         - wait_until:
@@ -55,7 +67,9 @@ ethernet:
   clock_speed: 20MHz
 
 
-
+udp:
+  addresses:
+    - 192.168.13.6
 
 psram:
   mode: hex
