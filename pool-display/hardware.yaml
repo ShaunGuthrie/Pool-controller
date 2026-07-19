@@ -65,7 +65,7 @@ touchscreen:
   - platform: gt911
     id: touch
     reset_pin: GPIO23
-    update_interval: 50ms
+    update_interval: 100ms
     transform:
       swap_xy: false
       mirror_x: true

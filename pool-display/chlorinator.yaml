@@ -45,6 +45,9 @@ switch:
       - globals.set:
           id: super_chlor_remaining
           value: '0'
+      - sensor.template.publish:
+          id: super_chlor_remaining_sensor
+          state: 0.0    
       - lvgl.widget.update:
           id: super_chlor_overlay
           hidden: true
@@ -54,6 +57,7 @@ switch:
       - lvgl.widget.update:
           id: lbl_chlor
           hidden: false
+
 
 
 sensor:
@@ -131,7 +135,7 @@ interval:
           id(uart_chlor).flush();
           delay(10);
 
-          ESP_LOGI("chlor", "TX: %02X %02X %02X %02X %02X %02X %02X %02X",
+          ESP_LOGD("chlor", "TX: %02X %02X %02X %02X %02X %02X %02X %02X",
             pkt[0], pkt[1], pkt[2], pkt[3], pkt[4], pkt[5], pkt[6], pkt[7]);
           id(uart_chlor).write_array(pkt, sizeof(pkt));
 
@@ -165,7 +169,7 @@ interval:
           }
 
           if (rx.size() >= 11) {
-            float ppm = rx[4] * 50.0f;
+            float ppm = rx[4] * 100.0f;
             id(salt_ppm).publish_state(ppm);
 
             uint8_t err = rx[5];

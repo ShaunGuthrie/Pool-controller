@@ -24,82 +24,82 @@ text_sensor:
     id: pool_4_speed
     entity_id: input_select.pool_4_speed
 
-## interval:
-##   - interval: 30s
-##     then:
-##       - lambda: |-
-##           if (!id(boot_complete)) {
-##           return;
-##           }
-##
-##           if (id(service_state) != "NORMAL") {
-##           return;
-##           }
-##
-##           auto now = id(pool_time).now();
-##           if (!now.is_valid()) return;
-##           int current = now.hour*3600 + now.minute*60 + now.second;
-##
-##           // Parse scheduled times
-##           int pool1_h, pool1_m, pool1_s;
-##           if (sscanf(id(pool_1).state.c_str(), "%d:%d:%d", &pool1_h, &pool1_m, &pool1_s) != 3)
-##             pool1_h = pool1_m = pool1_s = 0;
-##           int pool1_time = pool1_h*3600 + pool1_m*60 + pool1_s;
-##
-##           int pool2_h, pool2_m, pool2_s;
-##           if (sscanf(id(pool_2).state.c_str(), "%d:%d:%d", &pool2_h, &pool2_m, &pool2_s) != 3)
-##             pool2_h = pool2_m = pool2_s = 0;
-##           int pool2_time = pool2_h*3600 + pool2_m*60 + pool2_s;
-##
-##           int pool3_h, pool3_m, pool3_s;
-##           if (sscanf(id(pool_3).state.c_str(), "%d:%d:%d", &pool3_h, &pool3_m, &pool3_s) != 3)
-##             pool3_h = pool3_m = pool3_s = 0;
-##           int pool3_time = pool3_h*3600 + pool3_m*60 + pool3_s;
-##
-##           int pool4_h, pool4_m, pool4_s;
-##           if (sscanf(id(pool_4).state.c_str(), "%d:%d:%d", &pool4_h, &pool4_m, &pool4_s) != 3)
-##             pool4_h = pool4_m = pool4_s = 0;
-##           int pool4_time = pool4_h*3600 + pool4_m*60 + pool4_s;
-##
-##           // Numeric speeds
-##           auto speed_to_num = [](const std::string &speed) -> int {
-##             if (speed == "Off") return 0;
-##             if (speed == "Low") return 1;
-##             if (speed == "Medium") return 2;
-##             if (speed == "High") return 3;
-##             return 0;
-##           };
-##
-##           int speed1 = speed_to_num(id(pool_1_speed).state);
-##           int speed2 = speed_to_num(id(pool_2_speed).state);
-##           int speed3 = speed_to_num(id(pool_3_speed).state);  
-##           int speed4 = speed_to_num(id(pool_4_speed).state);
-##
-##           struct Schedule { int time_sec; int speed; };
-##           Schedule schedules[4] = {
-##             { pool1_time, speed1 },
-##             { pool2_time, speed2 },
-##             { pool3_time, speed3 },
-##             { pool4_time, speed4 }
-##           };
-##
-##           // Loop through schedules
-##           for (auto &s : schedules) {
-##             if (abs(current - s.time_sec) < 30) {  // within 30s of schedule
-##               
-##               if (id(heater_run) == "Heat") {
-##                 // Heater is running: store scheduled speed for later
-##                 if (s.speed == 0) id(Prev_Pump_Status) = "Off";
-##                 else if (s.speed == 1) id(Prev_Pump_Status) = "Low";
-##                 else if (s.speed == 2) id(Prev_Pump_Status) = "Medium";
-##                 else if (s.speed == 3) id(Prev_Pump_Status) = "High";
-##                 continue;  // skip applying buttons
-##               }
-##
-##               // Apply scheduled speed if heater not running
-##               if (s.speed == 0) id(b_off).press();
-##               else if (s.speed == 1) id(b_low).press();
-##               else if (s.speed == 2) id(b_med).press();
-##               else if (s.speed == 3) id(b_high).press();
-##             }
-##           }
+interval:
+  - interval: 30s
+    then:
+      - lambda: |-
+          if (!id(boot_complete)) {
+          return;
+          }
+
+          if (id(service_state) != "NORMAL") {
+          return;
+          }
+
+          auto now = id(pool_time).now();
+          if (!now.is_valid()) return;
+          int current = now.hour*3600 + now.minute*60 + now.second;
+
+          // Parse scheduled times
+          int pool1_h, pool1_m, pool1_s;
+          if (sscanf(id(pool_1).state.c_str(), "%d:%d:%d", &pool1_h, &pool1_m, &pool1_s) != 3)
+            pool1_h = pool1_m = pool1_s = 0;
+          int pool1_time = pool1_h*3600 + pool1_m*60 + pool1_s;
+
+          int pool2_h, pool2_m, pool2_s;
+          if (sscanf(id(pool_2).state.c_str(), "%d:%d:%d", &pool2_h, &pool2_m, &pool2_s) != 3)
+            pool2_h = pool2_m = pool2_s = 0;
+          int pool2_time = pool2_h*3600 + pool2_m*60 + pool2_s;
+
+          int pool3_h, pool3_m, pool3_s;
+          if (sscanf(id(pool_3).state.c_str(), "%d:%d:%d", &pool3_h, &pool3_m, &pool3_s) != 3)
+            pool3_h = pool3_m = pool3_s = 0;
+          int pool3_time = pool3_h*3600 + pool3_m*60 + pool3_s;
+
+          int pool4_h, pool4_m, pool4_s;
+          if (sscanf(id(pool_4).state.c_str(), "%d:%d:%d", &pool4_h, &pool4_m, &pool4_s) != 3)
+            pool4_h = pool4_m = pool4_s = 0;
+          int pool4_time = pool4_h*3600 + pool4_m*60 + pool4_s;
+
+          // Numeric speeds
+          auto speed_to_num = [](const std::string &speed) -> int {
+            if (speed == "Off") return 0;
+            if (speed == "Low") return 1;
+            if (speed == "Medium") return 2;
+            if (speed == "High") return 3;
+            return 0;
+          };
+
+          int speed1 = speed_to_num(id(pool_1_speed).state);
+          int speed2 = speed_to_num(id(pool_2_speed).state);
+          int speed3 = speed_to_num(id(pool_3_speed).state);  
+          int speed4 = speed_to_num(id(pool_4_speed).state);
+
+          struct Schedule { int time_sec; int speed; };
+          Schedule schedules[4] = {
+            { pool1_time, speed1 },
+            { pool2_time, speed2 },
+            { pool3_time, speed3 },
+            { pool4_time, speed4 }
+          };
+
+          // Loop through schedules
+          for (auto &s : schedules) {
+            if (abs(current - s.time_sec) < 30) {  // within 30s of schedule
+              
+              if (id(heater_run) == "Heat") {
+                // Heater is running: store scheduled speed for later
+                if (s.speed == 0) id(Prev_Pump_Status) = "Off";
+                else if (s.speed == 1) id(Prev_Pump_Status) = "Low";
+                else if (s.speed == 2) id(Prev_Pump_Status) = "Medium";
+                else if (s.speed == 3) id(Prev_Pump_Status) = "High";
+                continue;  // skip applying buttons
+              }
+
+              // Apply scheduled speed if heater not running
+              if (s.speed == 0) id(b_off).press();
+              else if (s.speed == 1) id(b_low).press();
+              else if (s.speed == 2) id(b_med).press();
+              else if (s.speed == 3) id(b_high).press();
+            }
+          }

@@ -19,7 +19,11 @@ sensor:
 #      name: "Enclosure Humidity"
 #    update_interval: never  
 
-
+  - platform: debug
+    free:
+      name: "Internal Heap Free"
+    psram:
+      name: "PSRAM Free"   
   - platform: uptime
     name: "Uptime Seconds"
     id: uptime_sec
@@ -82,29 +86,17 @@ interval:
             - component.update: ambient_adc
 #            - component.update: enclosure
 
-  - interval: 60s
-    then:
-      - lambda: |-
-          ESP_LOGI("sys", "Internal heap: %lu bytes", 
-            heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
-          ESP_LOGI("sys", "PSRAM free: %lu bytes",
-            heap_caps_get_free_size(MALLOC_CAP_SPIRAM));       
+   
 
-button:
-  - platform: template
-    name: "Log Level Debug"
-    on_press:
-      - lambda: esp_log_level_set("*", ESP_LOG_DEBUG);
-
-  - platform: template
-    name: "Log Level Info"
-    on_press:
-      - lambda: esp_log_level_set("*", ESP_LOG_INFO);      
-
-  - platform: template
-    name: "Log Level Warn"
-    on_press:
-      - lambda: esp_log_level_set("*", ESP_LOG_WARN);
+select:
+  - platform: logger
+    name: "Log Level"
+    on_value:
+      then:
+        - logger.log:
+            level: INFO
+            format: "Log level was manually updated to: %s"
+            args: [ 'x.c_str()' ]
 
 
     

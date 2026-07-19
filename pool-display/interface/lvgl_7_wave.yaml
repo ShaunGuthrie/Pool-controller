@@ -65,16 +65,17 @@ lvgl:
                         border_width: 1
                         on_click:
                           - lambda: |-
+                              static uint32_t last = 0;
+                              uint32_t now = millis();
+                              if (now - last < 1000) return;
+                              last = now;
 
                               if (id(service_state) == "NORMAL") {
                                 id(service_stop_action).execute();
                               }
-
                               else if (id(service_state) == "SERVICE") {
                                 id(service_resume_action).execute();
                               }
-
-                              // RUN = ignore
 
                         widgets:
                           - label:
@@ -97,16 +98,17 @@ lvgl:
                         width: 40
                         on_click:
                           - lambda: |-
+                              static uint32_t last = 0;
+                              uint32_t now = millis();
+                              if (now - last < 1000) return;
+                              last = now;
 
                               if (id(service_state) == "SERVICE") {
                                 id(service_run_action).execute();
                               }
-
                               else if (id(service_state) == "RUN") {
                                 id(service_stop_action).execute();
                               }
-
-                              // NORMAL = ignore
 
                         widgets:
                           - label:

@@ -13,7 +13,21 @@ esphome:
       then:
         - lambda: |-
             id(reboot_count)++;
-          
+    - priority: -100
+      then:
+        - delay: 2s
+        - lambda: |-
+            id(boot_complete) = true;
+        - lvgl.label.update:
+            id: head_lbl_build
+            text: !lambda |-
+              return std::string("Build: ") + __DATE__ + " " + __TIME__;    
+    - priority: -100
+      then:
+        - wait_until:
+            api.connected:
+        - component.update: ha_pump_status
+        - lambda: |-
             esp_reset_reason_t reason = esp_reset_reason();
             switch(reason) {
               case ESP_RST_POWERON:   ESP_LOGI("boot", "Reset: Power on"); break;
@@ -23,25 +37,8 @@ esphome:
               case ESP_RST_SW:        ESP_LOGI("boot", "Reset: Software"); break;
               case ESP_RST_DEEPSLEEP: ESP_LOGI("boot", "Reset: Deep sleep"); break;
               default:                ESP_LOGW("boot", "Reset: Unknown (%d)", reason); break;
-            } 
-    - priority: -10
-      then:
-        - delay: 15s
-        - lvgl.label.update:
-            id: head_lbl_build
-            text: !lambda |-
-              return std::string("Build: ") + __DATE__ + " " + __TIME__;
-    - priority: -100
-      then:
-        - delay: 2s
-        - lambda: |-
-            id(boot_complete) = true;
-            esp_log_level_set("*", ESP_LOG_INFO);
-    - priority: -100
-      then:
-        - wait_until:
-            api.connected:
-        - component.update: ha_pump_status        
+            }  
+            ESP_LOGI("boot", "Last ethernet event: %s", id(last_eth_event).c_str());        
    
   
 esp32:
@@ -65,6 +62,10 @@ ethernet:
   interrupt_pin: GPIO28
   reset_pin: GPIO29
   clock_speed: 20MHz
+  on_disconnect:
+    - lambda: id(last_eth_event) = "disconnected";
+  on_connect:
+    - lambda: id(last_eth_event) = "connected";
 
 
 udp:
@@ -88,7 +89,8 @@ safe_mode:
   boot_is_good_after: 30s
 
 logger:
-  level: DEBUG
+  level: VERBOSE
+  initial_level: INFO
 
 debug:
 
@@ -96,7 +98,7 @@ ota:
   platform: esphome
 
 api:
-  reboot_timeout: 5min
+  reboot_timeout: 2min
   
 web_server:
   port: 80
