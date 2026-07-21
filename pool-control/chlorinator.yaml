@@ -32,15 +32,7 @@ switch:
       - globals.set:
           id: super_chlor_remaining
           value: '21600'
-      - lvgl.widget.update:
-          id: super_chlor_overlay
-          hidden: false
-      - lvgl.widget.update:
-          id: chlor_output_slider
-          hidden: true
-      - lvgl.widget.update:
-          id: lbl_chlor
-          hidden: true
+
     turn_off_action:
       - globals.set:
           id: super_chlor_remaining
@@ -48,15 +40,7 @@ switch:
       - sensor.template.publish:
           id: super_chlor_remaining_sensor
           state: 0.0    
-      - lvgl.widget.update:
-          id: super_chlor_overlay
-          hidden: true
-      - lvgl.widget.update:
-          id: chlor_output_slider
-          hidden: false
-      - lvgl.widget.update:
-          id: lbl_chlor
-          hidden: false
+
 
 
 
@@ -67,13 +51,7 @@ sensor:
     unit_of_measurement: "ppm"
     accuracy_decimals: 0
     update_interval: never
-    on_value:
-      - lvgl.label.update:
-          id: lbl_salt_ppm
-          text: !lambda |-
-            char buf[16];
-            snprintf(buf, sizeof(buf), "%d PPM", (int)x);
-            return std::string(buf);
+
   - platform: template
     name: "Super Chlorinate Remaining"
     id: super_chlor_remaining_sensor
@@ -87,25 +65,19 @@ text_sensor:
     name: "Chlorinator Status"
     id: chlor_status_text
     update_interval: never
-    on_value:
-      - lvgl.label.update:
-          id: lbl_chlor_status
-          text: !lambda return x;
+
 
 number:
-  - platform: lvgl
-    widget: chlor_output_slider
+  - platform: template
     name: "Chlorinator Output %"
     id: chlor_output_target
+    min_value: 0
+    max_value: 100
+    step: 5
     restore_value: true
-    trigger: on_release
-    on_value:
-      - lvgl.label.update:
-          id: lbl_chlor
-          text: !lambda |-
-            char buf[8];
-            snprintf(buf, sizeof(buf), "%d%%", (int)x);
-            return std::string(buf);
+    optimistic: true
+    unit_of_measurement: "%"
+
 
 
 interval:
@@ -144,7 +116,7 @@ interval:
           // Listen longer to catch echo + response
           std::vector<uint8_t> rx;
           uint32_t start = millis();
-          while (millis() - start < 500) {
+          while (millis() - start < 150) {
             uint8_t b;
             if (id(uart_chlor).available() && id(uart_chlor).read_byte(&b))
               rx.push_back(b);
@@ -153,7 +125,7 @@ interval:
 
           if (rx.empty()) {
             ESP_LOGW("chlor", "No response");
-          } else if (rx.size() < 9) {
+          } else if (rx.size() < 7) {
             ESP_LOGW("chlor", "Short response %d bytes: %02X %02X %02X %02X %02X",
               rx.size(),
               rx.size() > 0 ? rx[0] : 0,
@@ -168,7 +140,7 @@ interval:
               rx[5], rx[6], rx[7], rx[8], rx[9], rx[10]);
           }
 
-          if (rx.size() >= 11) {
+          if (rx.size() >= 7) {
             float ppm = rx[4] * 100.0f;
             id(salt_ppm).publish_state(ppm);
 
@@ -203,10 +175,3 @@ interval:
             id(super_chlorinate).turn_off();
             ESP_LOGI("chlor", "Super Chlorinate auto-off after 6h");
           }
-      - lvgl.label.update:
-          id: lbl_super_chlor_remaining
-          text: !lambda |-
-            char buf[32];
-            snprintf(buf, sizeof(buf), "%d min remaining", 
-                     id(super_chlor_remaining) / 60);
-            return buf;    

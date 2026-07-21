@@ -1,37 +1,374 @@
-
-
-
-
-
-
-
+# ============================================================
+# interface_config.yaml
+# Headless architecture: all logic on Pool Controller (ESP32-S3).
+# This P4 display READS controller data via HA and SENDS commands
+# via HA services. Service mode is display-only (status shown,
+# control stays on the controller's physical GPIO buttons).
+#
+# LVGL update action by widget type:
+#   meter line/needle -> lvgl.indicator.update
+#   arc               -> lvgl.arc.update
+#   bar               -> lvgl.bar.update
+#   slider            -> lvgl.slider.update
+#   label             -> lvgl.label.update
+#
+# Scales:
+#   pH        controller real 7.2 ; display gauge/slider x10 (72)
+#   PSI       controller real 0-20 ; slider x10 (0-200)
+#   temp      controller °C ; display °F
+# ============================================================
 
 sensor:
-  - platform: ads1115
-    ads1115_id: ads0
-    multiplexer: 'A0_GND'
-    gain: 4.096
-    name: "3v rail"
-  - platform: ads1115
-    ads1115_id: ads0
-    multiplexer: 'A1_GND'
-    gain: 2.048
-    name: "5v rail 1"
-    filters:
-     - multiply: !lambda return 3;  
-  - platform: ads1115
-    ads1115_id: ads0
-    multiplexer: 'A2_GND'
-    gain: 2.048
-    name: "5v rail 2"
-    filters:
-     - multiply: !lambda return 3;     
-  - platform: ads1115
-    ads1115_id: ads0
-    multiplexer: 'A3_GND'
-    gain: 4.096
-    name: "12v rail"
-    filters:
-     - multiply: !lambda return 5;  
+  # ---- Water temp in (needle + header) ----
+  - platform: homeassistant
+    id: ha_temp_in
+    entity_id: sensor.pool_controller_temp_in
+    on_value:
+      - lvgl.indicator.update:
+          id: temperature_needle
+          value: !lambda return x;
+      - lvgl.label.update:
+          id: head_lbl_water_temp
+          text: !lambda |-
+            char buf[16];
+            snprintf(buf, sizeof(buf), "%.0f°F", x);
+            return std::string(buf);
 
+  # ---- Ambient temp (header) ----
+  - platform: homeassistant
+    id: ha_temp_ambient
+    entity_id: sensor.pool_controller_temp_ambient
+    on_value:
+      - lvgl.label.update:
+          id: head_lbl_a_temp
+          text: !lambda |-
+            char buf[16];
+            snprintf(buf, sizeof(buf), "%.0f°F", x);
+            return std::string(buf);
+
+    # ---- Water temp out (for heat rise calc) ----
+  - platform: homeassistant
+    id: ha_temp_out
+    entity_id: sensor.pool_controller_temp_out
+    on_value:
+      - lvgl.label.update:
+          id: heat_lbl_rise
+          text: !lambda |-
+            float rise = x - id(ha_temp_in).state;
+            char buf[16];
+            snprintf(buf, sizeof(buf), "%.1f F", rise);
+            return std::string(buf);          
+
+# ---- Filter pressure (BAR + color-coded fill + popup label) ----
+  - platform: homeassistant
+    id: ha_filter_pressure
+    entity_id: sensor.pool_controller_filter_pressure
+    on_value:
+      - lvgl.bar.update:
+          id: filter_pressure_bar
+          value: !lambda return x;
+      - lvgl.label.update:
+          id: lbl_filter_pressure
+          text: !lambda |-
+            char buf[16];
+            snprintf(buf, sizeof(buf), "%.1f PSI", x);
+            return std::string(buf);
+      - lambda: |-
+          float pressure = x;
+          float target = 10.0;
+          std::string pump = id(ha_pump_status_in).state;
+          if (pump == "Low")  target = id(ha_low_run_in).state;
+          if (pump == "Med")  target = id(ha_med_run_in).state;
+          if (pump == "High") target = id(ha_high_run_in).state;
+
+          lv_color_t color;
+          if (pressure >= target * 1.20)
+            color = lv_color_hex(0xFF0000);      // red - 20%+ over
+          else if (pressure >= target * 1.10)
+            color = lv_color_hex(0xFFFF00);      // yellow - 10%+ over
+          else
+            color = lv_color_hex(0x00FF00);      // green - normal
+
+          lv_obj_set_style_bg_color(id(filter_pressure_bar), color, LV_PART_INDICATOR);
+
+  # ---- pH value (needle x10 + dashboard label) ----
+  - platform: homeassistant
+    id: ha_ph_value
+    entity_id: sensor.pool_controller_ph_value
+    on_value:
+      - lvgl.indicator.update:
+          id: ph_needle
+          value: !lambda return x * 10.0;
+      - lvgl.label.update:
+          id: dashboard_ph_lbl
+          text: !lambda |-
+            char buf[16];
+            snprintf(buf, sizeof(buf), "pH %.1f", x);
+            return std::string(buf);
+
+  # ---- ORP value (needle + dashboard label) ----
+  - platform: homeassistant
+    id: ha_orp_value
+    entity_id: sensor.pool_controller_orp_value
+    on_value:
+      - lvgl.indicator.update:
+          id: orp_needle
+          value: !lambda return x;
+      - lvgl.label.update:
+          id: dashboard_orp_lbl
+          text: !lambda |-
+            char buf[24];
+            snprintf(buf, sizeof(buf), "ORP\n%.0f", x);
+            return std::string(buf);
+
+  # ---- Thermostat setpoint (ARC + label) ----
+  - platform: homeassistant
+    id: ha_thermostat_setpoint
+    entity_id: climate.pool_controller_thermostat
+    attribute: temperature
+    on_value:
+      - lvgl.arc.update:
+          id: thermostat_setpoint
+          value: !lambda return x;
+      - lvgl.label.update:
+          id: heat_lbl_setpoint
+          text: !lambda |-
+            char buf[16];
+            snprintf(buf, sizeof(buf), "set %.0fF", x);
+            return std::string(buf);
+
+  # ---- Salt PPM (status panel label) ----
+  - platform: homeassistant
+    id: ha_salt_ppm
+    entity_id: sensor.pool_controller_chlorinator_salt_ppm
+    on_value:
+      - lvgl.label.update:
+          id: lbl_salt_ppm
+          text: !lambda |-
+            char buf[16];
+            snprintf(buf, sizeof(buf), "%.0f ppm", x);
+            return std::string(buf);
+
+  # ---- Super Chlorinate remaining (overlay countdown) ----
+  - platform: homeassistant
+    id: ha_super_chlor_remaining
+    entity_id: sensor.pool_controller_super_chlorinate_remaining
+    on_value:
+      - lvgl.label.update:
+          id: lbl_super_chlor_remaining
+          text: !lambda |-
+            char buf[24];
+            snprintf(buf, sizeof(buf), "%.0f min remaining", x);
+            return std::string(buf);
+
+  # ============================================================
+  # SLIDER TWO-WAY SYNC (incoming values set slider + label)
+  # ============================================================
+
+  # ---- Chlorinator Output % (1:1) ----
+  - platform: homeassistant
+    id: ha_chlor_output_in
+    entity_id: number.pool_controller_chlorinator_output
+    on_value:
+      - lvgl.slider.update:
+          id: chlor_output_slider
+          value: !lambda return id(ha_chlor_output_in).state;
+      - lvgl.label.update:
+          id: lbl_chlor
+          text: !lambda |-
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%.0f%%", id(ha_chlor_output_in).state);
+            return std::string(buf);
+
+  # ---- Low Speed Baseline PSI (x10) ----
+  - platform: homeassistant
+    id: ha_low_run_in
+    entity_id: number.pool_controller_low_speed_filter_baseline_psi
+    on_value:
+      - lvgl.slider.update:
+          id: low_run_slider
+          value: !lambda return id(ha_low_run_in).state * 10.0;
+      - lvgl.label.update:
+          id: lbl_low_run_val
+          text: !lambda |-
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%.1f", id(ha_low_run_in).state);
+            return std::string(buf);
+
+  # ---- Med Speed Baseline PSI (x10) ----
+  - platform: homeassistant
+    id: ha_med_run_in
+    entity_id: number.pool_controller_med_speed_filter_baseline_psi
+    on_value:
+      - lvgl.slider.update:
+          id: med_run_slider
+          value: !lambda return id(ha_med_run_in).state * 10.0;
+      - lvgl.label.update:
+          id: lbl_med_run_val
+          text: !lambda |-
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%.1f", id(ha_med_run_in).state);
+            return std::string(buf);
+
+  # ---- High Speed Baseline PSI (x10) ----
+  - platform: homeassistant
+    id: ha_high_run_in
+    entity_id: number.pool_controller_high_speed_filter_baseline_psi
+    on_value:
+      - lvgl.slider.update:
+          id: high_run_slider
+          value: !lambda return id(ha_high_run_in).state * 10.0;
+      - lvgl.label.update:
+          id: lbl_high_run_val
+          text: !lambda |-
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%.1f", id(ha_high_run_in).state);
+            return std::string(buf);
+
+  # ---- Desired pH (x10) ----
+  - platform: homeassistant
+    id: ha_ph_set_in
+    entity_id: number.pool_controller_desired_ph
+    on_value:
+      - lvgl.slider.update:
+          id: ph_set_slider
+          value: !lambda return id(ha_ph_set_in).state * 10.0;
+      - lvgl.label.update:
+          id: lbl_ph_set_val
+          text: !lambda |-
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%.1f", id(ha_ph_set_in).state);
+            return std::string(buf);
+      - lvgl.label.update:
+          id: dashboard_ph_set_lbl
+          text: !lambda |-
+            char buf[16];
+            snprintf(buf, sizeof(buf), "pH %.1f", id(ha_ph_set_in).state);
+            return std::string(buf);
+
+# ============================================================
+# TEXT SENSORS FROM HOME ASSISTANT
+# ============================================================
+text_sensor:
+  # ---- Pump status -> button highlight ----
+  - platform: homeassistant
+    id: ha_pump_status_in
+    entity_id: sensor.pool_controller_ha_pump_status
+    on_value:
+      - lambda: |-
+          lv_obj_set_style_bg_color(id(pump_btn_off),  lv_color_hex(0x606060), 0);
+          lv_obj_set_style_bg_color(id(pump_btn_low),  lv_color_hex(0x606060), 0);
+          lv_obj_set_style_bg_color(id(pump_btn_high), lv_color_hex(0x606060), 0);
+          if (x == "Off")
+            lv_obj_set_style_bg_color(id(pump_btn_off),  lv_color_hex(0xFF0000), 0);
+          else if (x == "Low")
+            lv_obj_set_style_bg_color(id(pump_btn_low),  lv_color_hex(0x00FF00), 0);
+          else if (x == "High")
+            lv_obj_set_style_bg_color(id(pump_btn_high), lv_color_hex(0x00FF00), 0);
+
+  # ---- Service state (DISPLAY ONLY) ----
+  - platform: homeassistant
+    id: ha_service_state
+    entity_id: sensor.pool_controller_service_state
+    on_value:
+      - lvgl.label.update:
+          id: head_lbl_service_mode
+          text: !lambda return x;
+
+  # ---- Heater mode (heat/off) -> status label ----
+  - platform: homeassistant
+    id: ha_heater_mode
+    entity_id: climate.pool_controller_thermostat
+    on_value:
+      - lvgl.label.update:
+          id: heat_lbl_status
+          text: !lambda return x;
+
+  # ---- Chlorinator status text ----
+  - platform: homeassistant
+    id: ha_chlor_status_lbl
+    entity_id: sensor.pool_controller_chlorinator_status
+    on_value:
+      - lvgl.label.update:
+          id: lbl_chlor_status
+          text: !lambda return x;
+
+  # ---- Last dose end time ----
+  - platform: homeassistant
+    id: ha_dose_end_time
+    entity_id: sensor.pool_controller_last_dose_end_time
+    on_value:
+      - lvgl.label.update:
+          id: dose_end_time
+          text: !lambda return x;
+
+  # ---- Last dose duration ----
+  - platform: homeassistant
+    id: ha_acid_last_dose
+    entity_id: sensor.pool_controller_last_dose_duration
+    on_value:
+      - lvgl.label.update:
+          id: acid_last_dose
+          text: !lambda return x;
+
+  # ---- Last dose start pH ----
+  - platform: homeassistant
+    id: ha_last_start_ph
+    entity_id: sensor.pool_controller_last_dose_start_ph
+    on_value:
+      - lvgl.label.update:
+          id: last_start_ph
+          text: !lambda return x;
+
+binary_sensor:
+  - platform: homeassistant
+    id: ha_fountain_state
+    entity_id: switch.pool_controller_fountain
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: 'return x;'
+            then:
+              - lvgl.widget.update:
+                  id: pump_btn_fountain
+                  bg_color: 0x00FF00
+            else:
+              - lvgl.widget.update:
+                  id: pump_btn_fountain
+                  bg_color: 0x606060
+
+  - platform: homeassistant
+    id: ha_fountain_pause_state
+    entity_id: switch.pool_controller_fountain_pause
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: 'return x;'
+            then:
+              - lvgl.widget.update:
+                  id: pump_btn_fountain_pause
+                  bg_color: 0x00FF00
+            else:
+              - lvgl.widget.update:
+                  id: pump_btn_fountain_pause
+                  bg_color: 0x606060
+
+  - platform: homeassistant
+    id: ha_dose_arm_state
+    entity_id: switch.pool_controller_acid_dosing_arm
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: 'return x;'
+            then:
+              - lvgl.widget.update:
+                  id: btn_acid_dose
+                  bg_color: 0xffB300
+            else:
+              - lvgl.widget.update:
+                  id: btn_acid_dose
+                  bg_color: 0x606060
 

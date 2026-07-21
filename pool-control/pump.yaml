@@ -15,14 +15,7 @@ script:
           id(saved_heater_enabled) =
             (id(pool_heater).mode == climate::CLIMATE_MODE_HEAT);
           
-      - lvgl.widget.update:
-          id: head_btn_service_run
-          bg_color: 0xFF0000 # red
 
-      - lvgl.label.update:
-          id: head_btn_lbl_service
-          text: "\U000f05b7"
-          text_color: 0x000000 # black
       - switch.turn_off: super_chlorinate
       - switch.turn_off: chlor_power
 
@@ -32,9 +25,7 @@ script:
 
       - switch.turn_off: speed_high
 
-      - lvgl.label.update:
-          id:  head_lbl_service_mode
-          text: "Service Mode"
+
 
   - id: service_run_action
     mode: restart
@@ -48,14 +39,7 @@ script:
           }
 
           id(service_state) = "RUN";
-      - lvgl.widget.update:
-          id: head_btn_service_run
-          bg_color: 0x00FF00 # green
 
-      - lvgl.label.update:
-          id: head_btn_lbl_service
-          text: "\U000f1402"
-          text_color: 0x000000 # black
       - switch.turn_on: speed_high
 
       - lambda: |-
@@ -65,9 +49,7 @@ script:
     mode: restart        
     then:
       - logger.log: "SERVICE RESUME pressed"
-      - lvgl.label.update:
-          id:  head_lbl_service_mode
-          text: "Normal"
+
 
       - lambda: |-
           // If RUN was active, stop pump first
@@ -76,14 +58,7 @@ script:
           }
 
           id(service_state) = "NORMAL";
-      - lvgl.widget.update:
-          id: head_btn_service_run
-          bg_color: 0x606060 # dk_gray
-
-      - lvgl.label.update:
-          id: head_btn_lbl_service
-          text: "\U000F0BE0"
-          text_color: 0xFFFFFF # white    
+   
 
       - if:
           condition:
@@ -115,11 +90,13 @@ binary_sensor:
     name: "SERVICE STOP"
     id: stop
     pin:
-      number: GPIO52
+      number: ${service_stop_pin}
       mode:
         input: true
         pullup: true
       inverted: true
+    filters:
+      - delayed_on: 50ms
     on_press:
       then:
         - script.execute: service_stop_action
@@ -128,11 +105,13 @@ binary_sensor:
     name: "SERVICE RUN"
     id: service_run
     pin:
-      number: GPIO51
+      number: ${service_run_pin}
       mode:
         input: true
         pullup: true
       inverted: true
+    filters:
+      - delayed_on: 50ms
     on_press:
       then:
         - script.execute: service_run_action
@@ -141,14 +120,17 @@ binary_sensor:
     name: "RESUME"
     id: resume
     pin:
-      number: GPIO50
+      number: ${service_resume_pin}
       mode:
         input: true
         pullup: true
       inverted: true
+    filters:
+      - delayed_on: 50ms
     on_press:
       then:
         - script.execute: service_resume_action
+
 sensor:
   - platform: ads1115
     ads1115_id: ads1
@@ -178,52 +160,7 @@ sensor:
       - calibrate_linear:
           - 0.307 -> 0
           - 3.06 -> 30
-    on_value:
-      - lvgl.label.update:
-          id: lbl_filter_pressure
-          text: !lambda |-
-            char buf[32];
-            snprintf(buf, sizeof(buf), "%.1f PSI", x);
-            return std::string(buf);
-      - lvgl.bar.update:
-          id: filter_pressure_bar
-          value: !lambda |-
-            return x;
-      - lvgl.widget.update:
-          id: filter_pressure_bar    
-          indicator:
-            bg_color: !lambda |-
-              float pressure = x;
-
-              if (id(Pump_Status) == "Low") {
-                float target = id(low_run).state / 10.0f;
-                if (pressure >= target * 1.20)
-                  return lv_color_hex(0xFF0000);
-                if (pressure >= target * 1.10)
-                  return lv_color_hex(0xFFFF00);
-                return lv_color_hex(0x00FF00);
-              }
-
-              if (id(Pump_Status) == "Med") {
-                float target = id(med_run).state / 10.0f;
-                if (pressure >= target * 1.20)
-                  return lv_color_hex(0xFF0000);
-                if (pressure >= target * 1.10)
-                  return lv_color_hex(0xFFFF00);
-                return lv_color_hex(0x00FF00);
-              }
-
-              if (id(Pump_Status) == "High") {
-                float target = id(high_run).state / 10.0f;
-                if (pressure >= target * 1.20)
-                  return lv_color_hex(0xFF0000);
-                if (pressure >= target * 1.10)
-                  return lv_color_hex(0xFFFF00);
-                return lv_color_hex(0x00FF00);
-              }
-
-              // Pump Off
-              return lv_color_hex(0x00FF00);                           
+                        
 
 button:
   - platform: template
@@ -250,24 +187,7 @@ button:
               - globals.set:
                   id: Prev_Pump_Status
                   value: '"Off"'
-              - lvgl.widget.update:
-                  id: pump_btn_off
-                  bg_color: 0xFF0000 # red
-              - lvgl.label.update:
-                  id: pump_lbl_btn_off
-                  text_color: 0x000000 # black    
-              - lvgl.widget.update:
-                  id: pump_btn_low
-                  bg_color: 0x606060 # dk_gray
-              - lvgl.label.update:
-                  id: pump_lbl_btn_low
-                  text_color: 0xFFFFFF # white    
-              - lvgl.widget.update:
-                  id: pump_btn_high
-                  bg_color: 0x606060 # dk_gray
-              - lvgl.label.update:
-                  id: pump_lbl_btn_high
-                  text_color: 0xFFFFFF # white    
+  
   - platform: template
     name: "Pump Low"
     id: b_low
@@ -340,26 +260,9 @@ switch:
           id: Pump_Status
           value: '"Low"'
       - component.update: ha_pump_status
-      - lvgl.widget.update:
-          id: pump_btn_off
-          bg_color: 0x606060 # dk_gray
-      - lvgl.label.update:
-          id: pump_lbl_btn_off
-          text_color: 0xFFFFFF # white      
-      - lvgl.widget.update:
-          id: pump_btn_low
-          bg_color: 0x00FF00 # green
-      - lvgl.label.update:
-          id: pump_lbl_btn_low
-          text_color: 0x000000 # black
+
     on_turn_off:  
       - component.update: ha_pump_status
-      - lvgl.widget.update:
-          id: pump_btn_low
-          bg_color: 0x606060 # dk_gray
-      - lvgl.label.update:
-          id: pump_lbl_btn_low
-          text_color: 0xFFFFFF # white      
 
   - platform: gpio
     pin: 
@@ -378,26 +281,10 @@ switch:
           id: Pump_Status
           value: '"Med"'      
       - component.update: ha_pump_status
-      - lvgl.widget.update:
-          id: pump_btn_off
-          bg_color: 0x606060 # dk_gray
-      - lvgl.label.update:
-          id: pump_lbl_btn_off
-          text_color: 0xFFFFFF # white      
-      - lvgl.widget.update:
-          id: pump_btn_med
-          bg_color: 0x00FF00 # green
-      - lvgl.label.update:
-          id: pump_lbl_btn_med
-          text_color: 0x000000 # black
+
     on_turn_off:  
       - component.update: ha_pump_status
-      - lvgl.widget.update:
-          id: pump_btn_med
-          bg_color: 0x606060 # dk_gray
-      - lvgl.label.update:
-          id: pump_lbl_btn_med
-          text_color: 0xFFFFFF # white 
+
 
   - platform: gpio
     pin: 
@@ -415,26 +302,10 @@ switch:
           id: Pump_Status
           value: '"High"'
       - component.update: ha_pump_status
-      - lvgl.widget.update:
-          id: pump_btn_off
-          bg_color: 0x606060 # dk_gray
-      - lvgl.label.update:
-          id: pump_lbl_btn_off
-          text_color: 0xFFFFFF # white
-      - lvgl.widget.update:
-          id: pump_btn_high
-          bg_color: 0x00FF00 # green
-      - lvgl.label.update:
-          id: pump_lbl_btn_high
-          text_color: 0x000000 # black
+
     on_turn_off:  
       - component.update: ha_pump_status
-      - lvgl.widget.update:
-          id: pump_btn_high
-          bg_color: 0x606060 # dk_gray
-      - lvgl.label.update:
-          id: pump_lbl_btn_high
-          text_color: 0xFFFFFF # white      
+    
 
   - platform: gpio
     pin: 
@@ -446,30 +317,7 @@ switch:
     id: fountain_valve
     name: "Fountain"
     restore_mode: restore_default_off
-    on_turn_on:
-      - if:
-          condition:
-            lambda: |-
-              return id(boot_complete) && (id(service_state) == "NORMAL");
-          then:
-            - lvgl.widget.update:
-                id: pump_btn_fountain
-                bg_color: 0x00ff00 # green
-            - lvgl.label.update:
-                id: pump_lbl_btn_fountain
-                text_color: 0x000000 # black 
-    on_turn_off:
-      - if:
-          condition:
-            lambda: |-
-              return id(boot_complete);
-          then:                 
-            - lvgl.widget.update:
-                id: pump_btn_fountain
-                bg_color: 0x606060 # dk_gray
-            - lvgl.label.update:
-                id: pump_lbl_btn_fountain
-                text_color: 0xFFFFFF # white
+
   - platform: gpio
     pin: 
       xl9535: relays
@@ -480,30 +328,7 @@ switch:
     id: fountain_pause
     name: "Fountain Pause"
     restore_mode: restore_default_off
-    on_turn_on:
-      - if:
-          condition:
-            lambda: |-
-              return id(boot_complete) && (id(service_state) == "NORMAL");
-          then:
-            - lvgl.widget.update:
-                id: pump_btn_fountain_pause
-                bg_color: 0xFF0000 # red
-            - lvgl.label.update:
-                id: pump_lbl_btn_fountain_pause
-                text_color: 0x000000 # black     
-    on_turn_off:
-      - if:
-          condition:
-            lambda: |-
-              return id(boot_complete);
-          then:                 
-            - lvgl.widget.update:
-                id: pump_btn_fountain_pause
-                bg_color: 0x606060 # dk_gray
-            - lvgl.label.update:
-                id: pump_lbl_btn_fountain_pause
-                text_color: 0xFFFFFF # white    
+
 
 
 
@@ -522,41 +347,44 @@ text_sensor:  # can we make this update on chenge of status
     update_interval: never
 
 number:
-  - platform: lvgl
-    widget: low_run_slider
+  - platform: template
     name: "Low Speed Filter Baseline PSI"
     id: low_run
+    min_value: 0.0
+    max_value: 20.0
+    step: 0.1
     restore_value: true
-    on_value:
-      - lvgl.label.update:
-          id: lbl_low_run_val
-          text: !lambda |-
-            char buf[8];
-            snprintf(buf, sizeof(buf), "%.1f", x / 10.0f);
-            return std::string(buf);
+    optimistic: true
+    unit_of_measurement: "PSI"
 
-  - platform: lvgl
-    widget: med_run_slider
+  - platform: template
     name: "Med Speed Filter Baseline PSI"
     id: med_run
+    min_value: 0.0
+    max_value: 20.0
+    step: 0.1
     restore_value: true
-    on_value:
-      - lvgl.label.update:
-          id: lbl_med_run_val
-          text: !lambda |-
-            char buf[8];
-            snprintf(buf, sizeof(buf), "%.1f", x / 10.0f);
-            return std::string(buf);
+    optimistic: true
+    unit_of_measurement: "PSI"
 
-  - platform: lvgl
-    widget: high_run_slider
+  - platform: template
     name: "High Speed Filter Baseline PSI"
     id: high_run
+    min_value: 0.0
+    max_value: 20.0
+    step: 0.1
     restore_value: true
-    on_value:
-      - lvgl.label.update:
-          id: lbl_high_run_val
-          text: !lambda |-
-            char buf[8];
-            snprintf(buf, sizeof(buf), "%.1f", x / 10.0f);
-            return std::string(buf);
+    optimistic: true
+    unit_of_measurement: "PSI"
+
+interval:
+
+
+  - interval: 10s
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(boot_complete);
+          then:
+            - component.update: filter_pressure_raw    

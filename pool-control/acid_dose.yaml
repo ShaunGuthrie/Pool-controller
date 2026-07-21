@@ -1,3 +1,19 @@
+text_sensor:
+  - platform: template
+    name: "Last Dose End Time"
+    id: dose_end_time_sensor
+    update_interval: never
+
+  - platform: template
+    name: "Last Dose Duration"
+    id: acid_last_dose_sensor
+    update_interval: never
+
+  - platform: template
+    name: "Last Dose Start pH"
+    id: last_start_ph_sensor
+    update_interval: never
+
 sensor:
 - platform: template
   name: "pH Dosing Active"
@@ -34,39 +50,19 @@ switch:
           then:
             - switch.turn_off: dose_arm_relay  # ← pH OK, turn back off
             - logger.log: "pH already in range, no dose needed"
-            - lvgl.label.update:
-                id: btn_lbl_acid_dose
-                text: "pH OK"
-                text_color: 0x00FF44
-            - delay: 2s
-            - lvgl.label.update:
-                id: btn_lbl_acid_dose
-                text: "pH Routine"
-                text_color: 0xFFFFFF
+
           else:
             - globals.set:
                 id: dose_armed
                 value: 'true'
-            - lvgl.label.update:
-                id: btn_lbl_acid_dose
-                text: "Armed"
-                text_color: 0x000000
-            - lvgl.widget.update:
-                id: btn_acid_dose
-                bg_color: 0xffB300
+
 
     turn_off_action:
       - switch.turn_off: dose_arm_relay  # ← physical relay off first
       - globals.set:
           id: dose_armed
           value: 'false'
-      - lvgl.label.update:
-          id: btn_lbl_acid_dose
-          text: "pH Routine"
-          text_color: 0xFFFFFF
-      - lvgl.widget.update:
-          id: btn_acid_dose
-          bg_color: 0x606060
+
   - platform: gpio
     pin:
       xl9535: relays
@@ -87,48 +83,20 @@ switch:
       inverted: false 
     id: dosing_pump
     restore_mode: always_off
-    on_turn_on:
-      - lvgl.label.update:
-          id: btn_lbl_acid_dose
-          text: "DOSING"
-          text_color: 0x000000 
-      - lvgl.widget.update:
-          id: btn_acid_dose
-          bg_color: 0xff0000
-    on_turn_off:
-      - lvgl.label.update:
-          id: btn_lbl_acid_dose
-          text: "Armed"
-          text_color: 0x000000 
-      - lvgl.widget.update:
-          id: btn_acid_dose
-          bg_color: 0xffB300    
+ 
 
     
 number:
-  - platform: lvgl
-    widget: ph_set_slider
+  - platform: template
     name: "Desired pH"
     id: ph_set
+    min_value: 7.2
+    max_value: 7.8
+    step: 0.1
     restore_value: true
-    trigger: on_release
-    on_value:
-      - lvgl.label.update:
-          id: lbl_ph_set_val
-          text: !lambda |-
-            char buf[8];
-            snprintf(buf, sizeof(buf), "%.1f", x / 10.0f);
-            return std::string(buf);
-      - lvgl.label.update:
-          id: dashboard_ph_set_lbl
-          text: !lambda |-
-            char buf[32];
-            snprintf(buf, sizeof(buf), "pH Set %.1f", x / 10.0f);
-            return std::string(buf);
-      - lvgl.indicator.update:
-          id: ph_target_arc
-          start_value: !lambda return x - 2;
-          end_value: !lambda return x + 2; 
+    optimistic: true
+    unit_of_measurement: "pH"
+
   - platform: template
     name: "Dose Recheck Interval (min)"
     id: dose_recheck_interval
@@ -204,7 +172,7 @@ interval:
             }
 
             float current_ph = id(ph_value).state;
-            float target_ph = id(ph_set).state / 10.0f;
+            float target_ph = id(ph_set).state;
 
             if (current_ph <= target_ph) {
               ESP_LOGI("dose", "Midnight: pH in range (%.1f), disarming", current_ph);
@@ -309,7 +277,7 @@ interval:
             if (current < id(dose_wait_until)) return;
 
             float current_ph = id(ph_value).state;
-            float target_ph = id(ph_set).state / 10.0f;
+            float target_ph = id(ph_set).state;
 
             ESP_LOGI("dose", "Recheck: pH=%.1f target=%.1f budget_remaining=%d min session=%d/%d min",
               current_ph, target_ph,
@@ -342,7 +310,7 @@ interval:
               id(service_state) = "NORMAL";
               id(speed_low).turn_on();
               id(dose_arm).turn_off();
-              id(dose_complete_flag) = true;  // ← signal LVGL updates needed
+              id(dose_complete_flag) = true;
               return;
             }
 
@@ -379,23 +347,23 @@ interval:
           condition:
             lambda: return id(dose_complete_flag);
           then:
-            - lvgl.label.update:
-                id: dose_end_time
-                text: !lambda |-
+            - text_sensor.template.publish:
+                id: dose_end_time_sensor
+                state: !lambda |-
                   auto t = id(pool_time).now();
                   char buf[16];
                   snprintf(buf, sizeof(buf), "%02d:%02d", t.hour, t.minute);
                   return std::string(buf);
-            - lvgl.label.update:
-                id: acid_last_dose
-                text: !lambda |-
+            - text_sensor.template.publish:
+                id: acid_last_dose_sensor
+                state: !lambda |-
                   char buf[32];
                   snprintf(buf, sizeof(buf), "Last Dose: %d min", id(last_dose_minutes));
                   return std::string(buf);
-            - lvgl.label.update:
-                id: last_start_ph
-                text: !lambda |-
+            - text_sensor.template.publish:
+                id: last_start_ph_sensor
+                state: !lambda |-
                   char buf[32];
-                  snprintf(buf, sizeof(buf), "Start pH: %.1f", id(last_dose_start_ph));
+                  snprintf(buf, sizeof(buf), "%.1f", id(last_dose_start_ph));
                   return std::string(buf);
-            - lambda: id(dose_complete_flag) = false;         
+            - lambda: id(dose_complete_flag) = false;     

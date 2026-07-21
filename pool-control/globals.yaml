@@ -7,10 +7,7 @@ globals:
   - id: boot_complete
     type: bool
     initial_value: "false"
-  - id: last_eth_event
-    type: std::string
-    restore_value: true
-    initial_value: '"unknown"'     
+   
 
 #heater globals
   - id: heater_run # REVIEW LATER - used for heater running/idle and schedule pump lockout

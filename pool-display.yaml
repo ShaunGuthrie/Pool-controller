@@ -9,24 +9,10 @@ esphome:
     build_flags:
       - "-DLVGL_USE_VG_LITE=0"
   on_boot:
-    - priority: 600
-      then:
-        - lambda: |-
-            id(reboot_count)++;
-    - priority: -100
-      then:
-        - delay: 2s
-        - lambda: |-
-            id(boot_complete) = true;
-        - lvgl.label.update:
-            id: head_lbl_build
-            text: !lambda |-
-              return std::string("Build: ") + __DATE__ + " " + __TIME__;    
     - priority: -100
       then:
         - wait_until:
             api.connected:
-        - component.update: ha_pump_status
         - lambda: |-
             esp_reset_reason_t reason = esp_reset_reason();
             switch(reason) {
@@ -38,7 +24,7 @@ esphome:
               case ESP_RST_DEEPSLEEP: ESP_LOGI("boot", "Reset: Deep sleep"); break;
               default:                ESP_LOGW("boot", "Reset: Unknown (%d)", reason); break;
             }  
-            ESP_LOGI("boot", "Last ethernet event: %s", id(last_eth_event).c_str());        
+       
    
   
 esp32:
@@ -62,10 +48,7 @@ ethernet:
   interrupt_pin: GPIO28
   reset_pin: GPIO29
   clock_speed: 20MHz
-  on_disconnect:
-    - lambda: id(last_eth_event) = "disconnected";
-  on_connect:
-    - lambda: id(last_eth_event) = "connected";
+
 
 
 udp:
@@ -108,24 +91,93 @@ http_request:
   timeout: 10s
   verify_ssl: False
 
-
+syslog:
+  port: 1514
+  strip: true
 
 
 
 packages:
-
-  globals: !include pool-display/globals.yaml
-  heater: !include pool-display/heater.yaml
-  hardware: !include pool-display/hardware.yaml
-  chemistry: !include pool-display/chemistry.yaml
-  pump: !include pool-display/pump.yaml
-  acid_dose: !include pool-display/acid_dose.yaml
-  chlorinator: !include pool-display/chlorinator.yaml
-  schedule: !include pool-display/schedule.yaml
   interfaces: !include pool-display/interface/interface_config.yaml
   fonts: !include pool-display/interface/fontscolors.yaml
   lvgl: !include pool-display/interface/lvgl_7_wave.yaml
   style: !include pool-display/interface/themes_styles.yaml
-  core: !include pool-display/core.yaml
 
 
+i2c:
+  sda: GPIO07
+  scl: GPIO08
+  frequency: 400khz
+  timeout: 10ms
+
+display:
+  - platform: mipi_dsi
+    id: main_display
+    model: WAVESHARE-ESP32-P4-WIFI6-TOUCH-LCD-7B
+    reset_pin:
+      number: 33
+    update_interval: never
+    auto_clear_enabled: false
+   
+    dimensions:
+      width: 1024
+      height: 600
+
+
+touchscreen:
+  - platform: gt911
+    id: touch
+    reset_pin: GPIO23
+    update_interval: 100ms
+    transform:
+      swap_xy: false
+      mirror_x: true
+      mirror_y: true
+    on_touch:
+      then:
+        - light.turn_on:
+            id: backlight
+        - script.execute: 
+            id: backlight_off_timer
+        - logger.log: "TOUCH DETECTED"    
+
+# --- Backlight ---
+output:
+  - platform: ledc
+    pin: 
+      number: GPIO32
+      inverted: true
+    id: backlight_pwm
+    frequency: 5000 Hz
+    
+
+light:
+  - platform: monochromatic
+    output: backlight_pwm
+    name: Display Backlight
+    icon: mdi:lightbulb-on
+    id: backlight
+    restore_mode: ALWAYS_ON
+    default_transition_length: 250ms
+
+script:
+  - id: backlight_off_timer
+    mode: restart
+    then:
+      - delay: 120s
+      - light.turn_off: 
+          id: backlight
+
+select:
+  - platform: logger
+    name: "Log Level"
+    on_value:
+      then:
+        - logger.log:
+            level: INFO
+            format: "Log level was manually updated to: %s"
+            args: [ 'x.c_str()' ]    
+
+time:
+  - platform: homeassistant
+    id: pool_time            

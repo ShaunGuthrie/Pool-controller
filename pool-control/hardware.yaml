@@ -1,0 +1,80 @@
+substitutions:
+  service_stop_pin: GPIO5
+  service_run_pin: GPIO6
+  service_resume_pin: GPIO7
+
+
+
+uart:
+  - id: uart_chlor
+    tx_pin: GPIO17
+    rx_pin: GPIO18
+    baud_rate: 9600
+    data_bits: 8
+    parity: NONE
+    stop_bits: 1
+    rx_buffer_size: 256
+
+  - id: uart_vs_pump
+    tx_pin: GPIO11
+    rx_pin: GPIO12
+
+    baud_rate: 9600
+    data_bits: 8
+    parity: NONE
+    stop_bits: 1
+    rx_buffer_size: 256    
+
+i2c:
+  sda: GPIO8
+  scl: GPIO9
+  frequency: 400kHz
+  timeout: 50ms
+  scan: false
+  
+   
+ads1115:
+  - address: 0x48
+    id: ads0
+    continuous_mode: false
+  - address: 0x49
+    id: ads1
+    continuous_mode: false
+  - address: 0x4A
+    id: ads2
+    continuous_mode: false  
+
+ 
+xl9535:
+  - id: relays
+    address: 0x20  
+
+
+
+sensor:
+  - platform: ads1115
+    ads1115_id: ads0
+    multiplexer: 'A0_GND'
+    gain: 4.096
+    name: "3v rail"
+  - platform: ads1115
+    ads1115_id: ads0
+    multiplexer: 'A1_GND'
+    gain: 2.048
+    name: "5v rail 1"
+    filters:
+     - multiply: !lambda return 3;  
+  - platform: ads1115
+    ads1115_id: ads0
+    multiplexer: 'A2_GND'
+    gain: 2.048
+    name: "5v rail 2"
+    filters:
+     - multiply: !lambda return 3;     
+  - platform: ads1115
+    ads1115_id: ads0
+    multiplexer: 'A3_GND'
+    gain: 4.096
+    name: "12v rail"
+    filters:
+     - multiply: !lambda return 5;      

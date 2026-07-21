@@ -39,10 +39,7 @@ lvgl:
                   grid_cell_y_align: STRETCH
                   scrollable: false
                   widgets:
-                    - label:
-                        id: head_lbl_build
-                        align: bottom_mid
-                        text_font: montserrat_12                 
+          
                     - label:
                         id: head_lbl_a_temp
                         align: left_mid
@@ -53,7 +50,7 @@ lvgl:
                         x: 200
                         text: "70 F"
                     - label:
-                        align: top_mid
+                        align: Center
                         text: "POOL CONTROL"    
                     - button:
                         id: head_btn_service_status
@@ -63,19 +60,7 @@ lvgl:
                         height: 50
                         bg_opa: TRANSP
                         border_width: 1
-                        on_click:
-                          - lambda: |-
-                              static uint32_t last = 0;
-                              uint32_t now = millis();
-                              if (now - last < 1000) return;
-                              last = now;
 
-                              if (id(service_state) == "NORMAL") {
-                                id(service_stop_action).execute();
-                              }
-                              else if (id(service_state) == "SERVICE") {
-                                id(service_resume_action).execute();
-                              }
 
                         widgets:
                           - label:
@@ -96,19 +81,7 @@ lvgl:
                         align: right_mid
                         height: 40
                         width: 40
-                        on_click:
-                          - lambda: |-
-                              static uint32_t last = 0;
-                              uint32_t now = millis();
-                              if (now - last < 1000) return;
-                              last = now;
-
-                              if (id(service_state) == "SERVICE") {
-                                id(service_run_action).execute();
-                              }
-                              else if (id(service_state) == "RUN") {
-                                id(service_stop_action).execute();
-                              }
+  
 
                         widgets:
                           - label:
@@ -180,6 +153,18 @@ lvgl:
                         end_angle: 0
 
                         adjustable: true
+                        on_release:
+                          - homeassistant.service:
+                              service: climate.set_temperature
+                              data:
+                                entity_id: climate.pool_controller_thermostat
+                                temperature: !lambda return x;
+                          - lvgl.label.update:
+                              id: heat_lbl_setpoint
+                              text: !lambda |-
+                                char buf[16];
+                                snprintf(buf, sizeof(buf), "set %.0fF", x);
+                                return std::string(buf);
 
                         bg_opa: TRANSP
                         arc_opa: TRANSP
@@ -230,14 +215,21 @@ lvgl:
                         bg_opa: transp
                         border_opa: transp
                         on_click:
-                          - lambda: |-
-                              auto call = id(pool_heater).make_call();
-                              if (id(pool_heater).mode == climate::CLIMATE_MODE_HEAT) {
-                                call.set_mode(climate::CLIMATE_MODE_OFF);
-                              } else {
-                                call.set_mode(climate::CLIMATE_MODE_HEAT);
-                              }
-                              call.perform();
+                          - if:
+                              condition:
+                                lambda: 'return id(ha_heater_mode).state == "heat";'
+                              then:
+                                - homeassistant.service:
+                                    service: climate.set_hvac_mode
+                                    data:
+                                      entity_id: climate.pool_controller_thermostat
+                                      hvac_mode: "off"
+                              else:
+                                - homeassistant.service:
+                                    service: climate.set_hvac_mode
+                                    data:
+                                      entity_id: climate.pool_controller_thermostat
+                                      hvac_mode: "heat"
                         widgets:
                           - label:
                               id: heat_btn_lbl_status
@@ -286,7 +278,10 @@ lvgl:
                                     text: "OFF"
                                     align: CENTER
                               on_click:
-                                - button.press: b_off
+                                - homeassistant.service:
+                                    service: button.press
+                                    data:
+                                      entity_id: button.pool_controller_pump_off
 
                           - button:
                               id: pump_btn_low
@@ -298,8 +293,10 @@ lvgl:
                                     text: "LOW"
                                     align: CENTER
                               on_click:
-                                - button.press: b_low
-
+                                - homeassistant.service:
+                                    service: button.press
+                                    data:
+                                      entity_id: button.pool_controller_pump_low
                           - button:
                               id: pump_btn_med
                               flex_grow: 1
@@ -310,7 +307,10 @@ lvgl:
                                     text: "MED"
                                     align: CENTER
                               on_click:
-                                - button.press: b_med
+                                - homeassistant.service:
+                                    service: button.press
+                                    data:
+                                      entity_id: button.pool_controller_pump_high
 
                           - button:
                               id: pump_btn_high
@@ -322,7 +322,10 @@ lvgl:
                                     text: "HIGH"
                                     align: CENTER
                               on_click:
-                                - button.press: b_high
+                                - homeassistant.service:
+                                    service: button.press
+                                    data:
+                                      entity_id: button.pool_controller_pump_high
 
                     # ── Row 2: Fountain / Future Fill (35%) ──
                     - obj:
@@ -342,13 +345,10 @@ lvgl:
                               flex_grow: 1
                               height: 100%
                               on_click:
-                                - if:
-                                    condition:
-                                      switch.is_on: fountain_valve
-                                    then:
-                                      - switch.turn_off: fountain_valve
-                                    else:
-                                      - switch.turn_on: fountain_valve
+                                - homeassistant.service:
+                                    service: switch.toggle
+                                    data:
+                                      entity_id: switch.pool_controller_fountain
                               widgets:
                                 - label:
                                     id: pump_lbl_btn_fountain
@@ -360,13 +360,10 @@ lvgl:
                               flex_grow: 1
                               height: 100%
                               on_click:
-                                - if:
-                                    condition:
-                                      switch.is_on: fountain_pause
-                                    then:
-                                      - switch.turn_off: fountain_pause
-                                    else:
-                                      - switch.turn_on: fountain_pause
+                                - homeassistant.service:
+                                    service: switch.toggle
+                                    data:
+                                      entity_id: switch.pool_controller_fountain_pause
                               widgets:
                                 - label:
                                     text: "\U000F1066"
@@ -505,7 +502,10 @@ lvgl:
                         height: 50
                         align: bottom_mid
                         on_click:
-                          - switch.toggle: dose_arm
+                          - homeassistant.service:
+                              service: switch.toggle
+                              data:
+                                entity_id: switch.pool_controller_acid_dosing_arm
                         widgets:
                           - label:
                               id: btn_lbl_acid_dose
@@ -582,7 +582,10 @@ lvgl:
                         border_width: 0
                         shadow_width: 0
                         on_long_press:
-                          - switch.turn_on: super_chlorinate
+                          - homeassistant.service:
+                              service: switch.turn_on
+                              data:
+                                entity_id: switch.pool_controller_super_chlorinate
       
                         widgets:
                           - label:
@@ -603,7 +606,10 @@ lvgl:
                         border_width: 0
                         radius: 8
                         on_click:
-                          - switch.turn_off: super_chlorinate
+                          - homeassistant.service:
+                              service: switch.turn_off
+                              data:
+                                entity_id: switch.pool_controller_super_chlorinate
 
                         widgets:
                           - label:
@@ -632,6 +638,15 @@ lvgl:
                           align: bottom_left
                           x: 15
                           y: -10
+                          on_release:
+                            - homeassistant.service:
+                                service: number.set_value
+                                data:
+                                  entity_id: number.pool_controller_chlorinator_output
+                                variables:
+                                  value: !lambda return int(x);
+                                data_template:
+                                  value: "{{ value }}"
                           indicator:
                             bg_color: 0x0077FF
                             radius: 3
@@ -780,6 +795,15 @@ lvgl:
                   bg_color: 0xC0C0C0 # lt_gray
                   bg_opa: COVER
                   radius: 3
+                  on_release:
+                    - homeassistant.service:
+                        service: number.set_value
+                        data:
+                          entity_id: number.pool_controller_low_speed_filter_baseline_psi
+                        variables:
+                          value: !lambda return x / 10.0;
+                        data_template:
+                          value: "{{ value }}"
                   indicator:
                     bg_color: 0x0066FF # royal
                     radius: 3
@@ -824,6 +848,15 @@ lvgl:
                   bg_color: 0xC0C0C0 # lt_gray
                   bg_opa: COVER
                   radius: 3
+                  on_release:
+                    - homeassistant.service:
+                        service: number.set_value
+                        data:
+                          entity_id: number.pool_controller_med_speed_filter_baseline_psi
+                        variables:
+                          value: !lambda return x / 10.0;
+                        data_template:
+                          value: "{{ value }}"
                   indicator:
                     bg_color: 0x0066FF # royal
                     radius: 3
@@ -868,6 +901,15 @@ lvgl:
                   bg_color: 0xC0C0C0 # lt_gray
                   bg_opa: COVER
                   radius: 3
+                  on_release:
+                    - homeassistant.service:
+                        service: number.set_value
+                        data:
+                          entity_id: number.pool_controller_high_speed_filter_baseline_psi
+                        variables:
+                          value: !lambda return x / 10.0;
+                        data_template:
+                          value: "{{ value }}"
                   indicator:
                     bg_color: 0x0066FF # royal
                     radius: 3
@@ -911,6 +953,15 @@ lvgl:
                   bg_color: 0xC0C0C0 # lt_gray
                   bg_opa: COVER
                   radius: 3
+                  on_release:
+                    - homeassistant.service:
+                        service: number.set_value
+                        data:
+                          entity_id: number.pool_controller_desired_ph
+                        variables:
+                          value: !lambda return x / 10.0;
+                        data_template:
+                          value: "{{ value }}"
                   indicator:
                     bg_color: 0x0066FF # royal
                     radius: 3

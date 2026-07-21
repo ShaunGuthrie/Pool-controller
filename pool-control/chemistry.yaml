@@ -1,10 +1,23 @@
+  
+interval:
+
+
+  - interval: 10s
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(boot_complete);
+          then:
+            - component.update: ph_voltage
+            - component.update: water_level_raw
+            - component.update: orp_voltage
 sensor:
 
   - platform: ads1115
     ads1115_id: ads1
     multiplexer: 'A0_GND'
-    gain: 4.096
-    name: "pH Voltage"
+    gain: "4.096"
     id: ph_voltage
     update_interval: never
     on_value:
@@ -13,8 +26,7 @@ sensor:
   - platform: ads1115
     ads1115_id: ads1
     multiplexer: 'A1_GND'
-    gain: 4.096
-    name: "ORP Voltage"
+    gain: "4.096"
     id: orp_voltage
     update_interval: never
     on_value:
@@ -24,7 +36,7 @@ sensor:
   - platform: ads1115
     ads1115_id: ads1
     multiplexer: 'A2_GND'
-    gain: 4.096
+    gain: "4.096"
     name: "Water Level raw"
     id: water_level_raw 
     update_interval: never
@@ -59,17 +71,7 @@ sensor:
       float V = id(ph_voltage).state;
       // Apply calibration formula
       return (-5.654 * V) + 15.509;
-    on_value:
-      - lvgl.label.update:
-          id: dashboard_ph_lbl
-          text: !lambda |-
-            char buf[16];
-            snprintf(buf, sizeof(buf), "pH %.1f", x);
-            return std::string(buf);
-      - lvgl.indicator.update:
-          id: ph_needle
-          value: !lambda |-
-            return (int)(x * 10.0);
+
   - platform: template
     id: orp_value
     name: "ORP Value"
@@ -78,15 +80,5 @@ sensor:
     update_interval: never
     lambda: |-
       return (id(orp_voltage).state - 1.5) * 1000.0;
-    on_value:
-      - lvgl.label.update:
-          id: dashboard_orp_lbl
-          text: !lambda |-
-            char buf[32];
-            snprintf(buf, sizeof(buf), "ORP\n%.0f", x);
-            return std::string(buf);
-      - lvgl.indicator.update:
-          id: orp_needle
-          value: !lambda |-
-            return (int)(x);
+
 
