@@ -275,14 +275,80 @@ text_sensor:
           id: head_lbl_service_mode
           text: !lambda return x;
 
-  # ---- Heater mode (heat/off) -> status label ----
+# ---- Heater mode + action -> icon/label (both text_sensor, mode is source) ----
   - platform: homeassistant
     id: ha_heater_mode
     entity_id: climate.pool_controller_thermostat
     on_value:
-      - lvgl.label.update:
-          id: heat_lbl_status
-          text: !lambda return x;
+      - if:
+          condition:
+            lambda: 'return x == "off";'
+          then:
+            - lvgl.label.update:
+                id: heat_lbl_status
+                text: "Off"
+            - lvgl.label.update:
+                id: heat_btn_lbl_status
+                text: "\U000F1722"
+                text_color: 0xFFFFFF
+          else:
+            - if:
+                condition:
+                  lambda: 'return id(ha_heater_action).state == "heating";'
+                then:
+                  - lvgl.label.update:
+                      id: heat_lbl_status
+                      text: "Running"
+                  - lvgl.label.update:
+                      id: heat_btn_lbl_status
+                      text: "\U000F0238"
+                      text_color: 0xFFB300
+                else:
+                  - lvgl.label.update:
+                      id: heat_lbl_status
+                      text: "Idle"
+                  - lvgl.label.update:
+                      id: heat_btn_lbl_status
+                      text: "\U000F0238"
+                      text_color: 0xFFFFFF
+
+  # ---- Heater action (heating/idle) -> icon/label (mirrors mode block) ----
+  - platform: homeassistant
+    id: ha_heater_action
+    entity_id: climate.pool_controller_thermostat
+    attribute: hvac_action
+    on_value:
+      - if:
+          condition:
+            lambda: 'return id(ha_heater_mode).state == "off";'
+          then:
+            - lvgl.label.update:
+                id: heat_lbl_status
+                text: "Off"
+            - lvgl.label.update:
+                id: heat_btn_lbl_status
+                text: "\U000F1722"
+                text_color: 0xFFFFFF
+          else:
+            - if:
+                condition:
+                  lambda: 'return x == "heating";'
+                then:
+                  - lvgl.label.update:
+                      id: heat_lbl_status
+                      text: "Running"
+                  - lvgl.label.update:
+                      id: heat_btn_lbl_status
+                      text: "\U000F0238"
+                      text_color: 0xFFB300
+                else:
+                  - lvgl.label.update:
+                      id: heat_lbl_status
+                      text: "Idle"
+                  - lvgl.label.update:
+                      id: heat_btn_lbl_status
+                      text: "\U000F0238"
+                      text_color: 0xFFFFFF
 
   # ---- Chlorinator status text ----
   - platform: homeassistant
@@ -372,3 +438,31 @@ binary_sensor:
                   id: btn_acid_dose
                   bg_color: 0x606060
 
+  - platform: homeassistant
+    id: ha_super_chlorinate_state
+    entity_id: switch.pool_controller_super_chlorinate
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: 'return x;'
+            then:
+              - lvgl.widget.update:
+                  id: super_chlor_overlay
+                  hidden: false
+              - lvgl.widget.update:
+                  id: chlor_output_slider
+                  hidden: true
+              - lvgl.widget.update:
+                  id: lbl_chlor
+                  hidden: true
+            else:
+              - lvgl.widget.update:
+                  id: super_chlor_overlay
+                  hidden: true
+              - lvgl.widget.update:
+                  id: chlor_output_slider
+                  hidden: false
+              - lvgl.widget.update:
+                  id: lbl_chlor
+                  hidden: false
